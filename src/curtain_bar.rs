@@ -1,5 +1,6 @@
 use gtk::prelude::*;
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use crate::widgets::{DropdownButton, MenuItem};
 
 #[derive(Debug, Clone)]
 pub struct CurtainBarConfig {
@@ -64,7 +65,7 @@ impl CurtainBarBuilder {
         self
     }
 
-    pub fn build(self, app: &gtk::Application) -> Result<CurtainBar, Box<dyn std::error::Error>> {
+    pub fn build(self, app: &adw::Application) -> Result<CurtainBar, Box<dyn std::error::Error>> {
         CurtainBar::with_config(app, self.config)
     }
 }
@@ -81,11 +82,11 @@ impl CurtainBar {
         CurtainBarBuilder::new()
     }
 
-    pub fn new(app: &gtk::Application) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(app: &adw::Application) -> Result<Self, Box<dyn std::error::Error>> {
         Self::with_config(app, CurtainBarConfig::default())
     }
 
-    fn with_config(app: &gtk::Application, config: CurtainBarConfig) -> Result<Self, Box<dyn std::error::Error>> {
+    fn with_config(app: &adw::Application, config: CurtainBarConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let window = gtk::ApplicationWindow::builder()
             .application(app)
             .title("Curtain Bar")
@@ -98,12 +99,14 @@ impl CurtainBar {
         
         window.set_child(Some(&panel_box));
 
-        Ok(Self {
-            window,
+        let curtain_bar = Self {
+            window: window.clone(),
             left_box,
             center_box,
             right_box,
-        })
+        };
+
+        Ok(curtain_bar)
     }
 
     fn configure_layer_shell(window: &gtk::ApplicationWindow, config: &CurtainBarConfig) -> Result<(), Box<dyn std::error::Error>> {
@@ -181,5 +184,127 @@ impl CurtainBar {
 
     pub fn present(&self) {
         self.window.present();
+    }
+    
+
+    pub fn add_sample_menus(&self) {
+        // File menu
+        let file_menu = DropdownButton::new()
+            .with_text("File");
+
+        let file_items = vec![
+            MenuItem::new("new", "New File")
+                .with_icon("document-new-symbolic"),
+            MenuItem::new("open", "Open..."),
+            MenuItem::new("recent", "Recent Files")
+                .with_icon("document-open-recent-symbolic")
+                .with_submenu(vec![
+                    MenuItem::new("recent1", "config.toml"),
+                    MenuItem::new("recent2", "main.rs"),
+                    MenuItem::new("recent3", "style.css"),
+                ]),
+            MenuItem::separator(),
+            MenuItem::new("save", "Save")
+                .toggled(),
+            MenuItem::new("save_as", "Save As..."),
+            MenuItem::new("export", "Export"),
+            MenuItem::separator(),
+            MenuItem::new("quit", "Quit")
+                .with_icon("application-exit-symbolic"),
+        ];
+
+        let file_menu_clone = file_menu.clone();
+        let file_menu_with_callback = file_menu.on_item_toggled(move |item_id, _| {
+            if item_id == "save" {
+                let new_state = file_menu_clone.toggle_item(item_id);
+                println!("Toggled: {} ({})", item_id, if new_state { "ON" } else { "OFF" });
+            } else {
+                println!("Selected: {}", item_id);
+            }
+        });
+        
+        file_menu_with_callback.set_menu_items(file_items);
+        self.add_widget_to_left(file_menu_with_callback.widget());
+
+        // View menu
+        let view_menu = DropdownButton::new()
+            .with_text("View")
+            .on_item_toggled(|item_id, is_toggled| {
+                println!("View toggled: {} ({})", item_id, if is_toggled { "ON" } else { "OFF" });
+            });
+
+        let view_items = vec![
+            MenuItem::new("fullscreen", "Fullscreen")
+                .with_icon("view-fullscreen-symbolic"),
+            MenuItem::new("zoom_in", "Zoom In")
+                .with_icon("zoom-in-symbolic"),
+            MenuItem::new("zoom_out", "Zoom Out")
+                .with_icon("zoom-out-symbolic"),
+            MenuItem::new("zoom_reset", "Reset Zoom")
+                .with_icon("zoom-original-symbolic"),
+            MenuItem::separator(),
+            MenuItem::new("dark_mode", "Dark Mode")
+                .with_icon("weather-clear-night-symbolic")
+                .toggled(),
+            MenuItem::new("show_sidebar", "Show Sidebar")
+                .with_icon("view-dual-symbolic")
+                .toggled(),
+        ];
+
+        view_menu.set_menu_items(view_items);
+        self.add_widget_to_left(view_menu.widget());
+
+        // Settings menu with icon
+        let settings_menu = DropdownButton::new()
+            .with_icon_and_text("preferences-system-symbolic", "Settings")
+            .on_item_toggled(|item_id, is_toggled| {
+                println!("Settings toggled: {} ({})", item_id, if is_toggled { "ON" } else { "OFF" });
+            });
+
+        let settings_items = vec![
+            MenuItem::new("preferences", "Preferences...")
+                .with_icon("preferences-system-symbolic"),
+            MenuItem::new("keyboard", "Keyboard Shortcuts")
+                .with_icon("input-keyboard-symbolic"),
+            MenuItem::separator(),
+            MenuItem::new("plugins", "Plugins")
+                .with_icon("application-x-addon-symbolic"),
+            MenuItem::new("themes", "Themes")
+                .with_icon("preferences-desktop-theme-symbolic")
+                .with_submenu(vec![
+                    MenuItem::new("theme_light", "Light Theme"),
+                    MenuItem::new("theme_dark", "Dark Theme")
+                        .toggled(),
+                    MenuItem::new("theme_auto", "Auto (System)"),
+                ]),
+        ];
+
+        settings_menu.set_menu_items(settings_items);
+        self.add_widget_to_right(settings_menu.widget());
+
+        // User menu (icon only)
+        let user_menu = DropdownButton::new()
+            .with_icon("avatar-default-symbolic")
+            .on_item_toggled(|item_id, is_toggled| {
+                println!("User toggled: {} ({})", item_id, if is_toggled { "ON" } else { "OFF" });
+            });
+
+        let user_items = vec![
+            MenuItem::new("profile", "Profile")
+                .with_icon("user-info-symbolic"),
+            MenuItem::new("account", "Account Settings")
+                .with_icon("system-users-symbolic"),
+            MenuItem::separator(),
+            MenuItem::new("help", "Help & Support")
+                .with_icon("help-browser-symbolic"),
+            MenuItem::new("about", "About")
+                .with_icon("help-about-symbolic"),
+            MenuItem::separator(),
+            MenuItem::new("logout", "Log Out")
+                .with_icon("system-log-out-symbolic"),
+        ];
+
+        user_menu.set_menu_items(user_items);
+        self.add_widget_to_right(user_menu.widget());
     }
 }

@@ -1,0 +1,26 @@
+/* Dropdown Menu Styling */
+.dropdown-menu {
+    padding: 2px 0;
+    min-width: 200px;
+    background-color: var(--popover-bg-color);
+    border: 1px solid var(--borders);
+    border-radius: 0px;
+    box-shadow: none;
+}
+
+/* Force popover to have square corners */
+popover.dropdown-menu,
+popover > contents {
+    border-radius: 0px;
+}
+
+.dropdown-item {
+    padding: 6px 16px;
+    background-color: var(--popover-bg-color);
+}
+
+.dropdown-separator {
+    margin: 4px 8px;
+    background-color: var(--borders);
+    min-height: 1px;
+}
