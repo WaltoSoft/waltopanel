@@ -1,4 +1,5 @@
 use gtk::prelude::*;
+use gtk::gio;
 use crate::CurtainBar;
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,6 +16,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = adw::Application::builder()
         .application_id("com.example.CurtainBar")
+        .flags(gio::ApplicationFlags::empty())
         .build();
 
     app.connect_activate(|app| {
@@ -24,12 +26,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     
-    app.run();
+    app.run_with_args(&Vec::<String>::new());
     Ok(())
 }
 
 fn build_panel(app: &adw::Application) -> Result<(), Box<dyn std::error::Error>> {
-    let panel = CurtainBar::new(app)?;
+    let mut panel = CurtainBar::new(app)?;
     panel.add_sample_menus();
     panel.present();
     Ok(())

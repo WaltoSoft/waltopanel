@@ -75,6 +75,7 @@ pub struct CurtainBar {
     left_box: gtk::Box,
     center_box: gtk::Box,
     right_box: gtk::Box,
+    _dropdowns: Vec<DropdownButton>, // Keep dropdown buttons alive
 }
 
 impl CurtainBar {
@@ -104,6 +105,7 @@ impl CurtainBar {
             left_box,
             center_box,
             right_box,
+            _dropdowns: Vec::new(),
         };
 
         Ok(curtain_bar)
@@ -187,7 +189,7 @@ impl CurtainBar {
     }
     
 
-    pub fn add_sample_menus(&self) {
+    pub fn add_sample_menus(&mut self) {
         // File menu
         let file_menu = DropdownButton::new()
             .with_text("File");
@@ -215,6 +217,14 @@ impl CurtainBar {
 
         let file_menu_clone = file_menu.clone();
         let file_menu_with_callback = file_menu.on_item_toggled(move |item_id, _| {
+            println!("MAIN CALLBACK TRIGGERED for item: {}", item_id);
+            
+            // Check if this is a submenu item - if so, ignore the callback
+            if item_id == "recent" {
+                println!("Ignoring callback for submenu item: {}", item_id);
+                return;
+            }
+            
             if item_id == "save" {
                 let new_state = file_menu_clone.toggle_item(item_id);
                 println!("Toggled: {} ({})", item_id, if new_state { "ON" } else { "OFF" });
@@ -225,6 +235,7 @@ impl CurtainBar {
         
         file_menu_with_callback.set_menu_items(file_items);
         self.add_widget_to_left(file_menu_with_callback.widget());
+        self._dropdowns.push(file_menu_with_callback);
 
         // View menu
         let view_menu = DropdownButton::new()
@@ -253,6 +264,7 @@ impl CurtainBar {
 
         view_menu.set_menu_items(view_items);
         self.add_widget_to_left(view_menu.widget());
+        self._dropdowns.push(view_menu);
 
         // Settings menu with icon
         let settings_menu = DropdownButton::new()
@@ -276,11 +288,23 @@ impl CurtainBar {
                     MenuItem::new("theme_dark", "Dark Theme")
                         .toggled(),
                     MenuItem::new("theme_auto", "Auto (System)"),
+                    MenuItem::new("theme_custom", "Custom Themes")
+                        .with_submenu(vec![
+                            MenuItem::new("theme_blue", "Blue Theme"),
+                            MenuItem::new("theme_green", "Green Theme"),
+                            MenuItem::new("theme_advanced", "Advanced")
+                                .with_submenu(vec![
+                                    MenuItem::new("theme_editor", "Theme Editor"),
+                                    MenuItem::new("theme_import", "Import Theme"),
+                                    MenuItem::new("theme_export", "Export Theme"),
+                                ]),
+                        ]),
                 ]),
         ];
 
         settings_menu.set_menu_items(settings_items);
         self.add_widget_to_right(settings_menu.widget());
+        self._dropdowns.push(settings_menu);
 
         // User menu (icon only)
         let user_menu = DropdownButton::new()
@@ -306,5 +330,6 @@ impl CurtainBar {
 
         user_menu.set_menu_items(user_items);
         self.add_widget_to_right(user_menu.widget());
+        self._dropdowns.push(user_menu);
     }
 }
