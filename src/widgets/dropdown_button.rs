@@ -5,11 +5,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 thread_local! {
-  // Thread-local list to track all dropdown instances for proper exclusive behavior
   static DROPDOWN_INSTANCES: RefCell<Vec<gtk::Popover>> = RefCell::new(Vec::new());
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MenuItem {
   pub id: String,
   pub label: String,
@@ -60,15 +59,14 @@ impl MenuItem {
 
 #[derive(Clone)]
 pub struct DropdownButton {
-  button: gtk::Button,
-  popover: gtk::Popover,
   pub menu_items: Rc<RefCell<Vec<MenuItem>>>,
   pub on_item_selected: Rc<RefCell<Option<Box<dyn Fn(&str, bool) + 'static>>>>,
+  button: gtk::Button,
+  popover: gtk::Popover,
   focused_item_index: Rc<RefCell<Option<usize>>>,
   menu_containers: Rc<RefCell<Vec<gtk::Box>>>,
   current_menu_stack: Rc<RefCell<Vec<Vec<MenuItem>>>>,
-  menu_titles: Rc<RefCell<Vec<String>>>,
-  suppress_callback: Rc<RefCell<bool>>,
+  menu_breadcrumbs: Rc<RefCell<Vec<String>>>,
   _popover_rc: Rc<gtk::Popover>,
 }
 
@@ -113,8 +111,7 @@ impl DropdownButton {
       focused_item_index: Rc::new(RefCell::new(None)),
       menu_containers: Rc::new(RefCell::new(Vec::new())),
       current_menu_stack: Rc::new(RefCell::new(Vec::new())),
-      menu_titles: Rc::new(RefCell::new(Vec::new())),
-      suppress_callback: Rc::new(RefCell::new(false)),
+      menu_breadcrumbs: Rc::new(RefCell::new(Vec::new())),
       _popover_rc: Rc::new(popover.clone()),
     };
 
@@ -175,7 +172,7 @@ impl DropdownButton {
     let callback = self.on_item_selected.clone();
     let popover = self.popover.clone();
     let menu_stack = self.current_menu_stack.clone();
-    let menu_titles = self.menu_titles.clone();
+    let menu_breadcrumbs = self.menu_breadcrumbs.clone();
     let dropdown_self = self.clone();
 
     key_controller.connect_key_pressed(move |_, key, _, _| {
@@ -272,7 +269,7 @@ impl DropdownButton {
               let dropdown_clone = dropdown_self.clone();
               let menu_items_clone = menu_items.clone();
               let menu_stack_clone = menu_stack.clone();
-              let menu_titles_clone = menu_titles.clone();
+              let menu_breadcrumbs_clone = menu_breadcrumbs.clone();
               let focused_index_clone = focused_index.clone();
               let submenu_clone = submenu.clone();
               let item_label_clone = item_label.clone();
@@ -283,7 +280,7 @@ impl DropdownButton {
 
                 // Now modify the menu state
                 menu_stack_clone.borrow_mut().push(current_menu);
-                menu_titles_clone.borrow_mut().push(item_label_clone);
+                menu_breadcrumbs_clone.borrow_mut().push(item_label_clone);
                 *menu_items_clone.borrow_mut() = submenu_clone;
                 *focused_index_clone.borrow_mut() = None;
                 dropdown_clone.rebuild_menu();
@@ -300,13 +297,13 @@ impl DropdownButton {
             let dropdown_clone = dropdown_self.clone();
             let menu_items_clone = menu_items.clone();
             let menu_stack_clone = menu_stack.clone();
-            let menu_titles_clone = menu_titles.clone();
+            let menu_breadcrumbs_clone = menu_breadcrumbs.clone();
             let focused_index_clone = focused_index.clone();
 
             glib::idle_add_local_once(move || {
               let previous_menu = menu_stack_clone.borrow_mut().pop();
               if let Some(previous_menu) = previous_menu {
-                menu_titles_clone.borrow_mut().pop();
+                menu_breadcrumbs_clone.borrow_mut().pop();
                 *menu_items_clone.borrow_mut() = previous_menu;
                 *focused_index_clone.borrow_mut() = None;
                 dropdown_clone.rebuild_menu();
@@ -332,13 +329,13 @@ impl DropdownButton {
     let menu_items_clone = self.menu_items.clone();
 
     let menu_stack_clone = self.current_menu_stack.clone();
-    let menu_titles_clone = self.menu_titles.clone();
+    let menu_breadcrumbs_clone = self.menu_breadcrumbs.clone();
 
     self.popover.connect_show(move |_| {
       *focused_index_clone.borrow_mut() = None;
       // Reset navigation state when popover opens
       menu_stack_clone.borrow_mut().clear();
-      menu_titles_clone.borrow_mut().clear();
+      menu_breadcrumbs_clone.borrow_mut().clear();
 
       let items = menu_items_clone.borrow();
       let non_separator_items: Vec<_> = items
@@ -506,7 +503,7 @@ impl DropdownButton {
       let submenu_items = item.submenu.clone().unwrap();
       let item_label = item.label.clone();
       let menu_stack = self.current_menu_stack.clone();
-      let menu_titles = self.menu_titles.clone();
+      let menu_breadcrumbs = self.menu_breadcrumbs.clone();
       let current_items = self.menu_items.clone();
       let dropdown_clone = self.clone();
       let item_id = item.id.clone();
@@ -517,7 +514,7 @@ impl DropdownButton {
       event_controller.connect_pressed(move |_, _, _, _| {
         println!("SUBMENU: Navigating to: {}", item_id);
         menu_stack.borrow_mut().push(current_items.borrow().clone());
-        menu_titles.borrow_mut().push(item_label.clone());
+        menu_breadcrumbs.borrow_mut().push(item_label.clone());
         *current_items.borrow_mut() = submenu_items.clone();
         dropdown_clone.rebuild_menu();
       });
@@ -609,7 +606,7 @@ impl DropdownButton {
     col += 1;
 
     // Parent menu name as back label
-    let back_label = if let Some(title) = self.menu_titles.borrow().last() {
+    let back_label = if let Some(title) = self.menu_breadcrumbs.borrow().last() {
       title.clone()
     } else {
       "Back".to_string()
@@ -631,7 +628,7 @@ impl DropdownButton {
 
     // Handle back navigation
     let menu_stack = self.current_menu_stack.clone();
-    let menu_titles = self.menu_titles.clone();
+    let menu_breadcrumbs = self.menu_breadcrumbs.clone();
     let current_items = self.menu_items.clone();
     let dropdown_clone = self.clone();
 
@@ -644,7 +641,7 @@ impl DropdownButton {
 
       let previous_menu = menu_stack.borrow_mut().pop();
       if let Some(previous_menu) = previous_menu {
-        menu_titles.borrow_mut().pop();
+        menu_breadcrumbs.borrow_mut().pop();
         *current_items.borrow_mut() = previous_menu;
         dropdown_clone.rebuild_menu();
 
