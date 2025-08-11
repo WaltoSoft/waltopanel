@@ -120,6 +120,15 @@ impl DropdownButton {
       instances.borrow_mut().push(popover.clone());
     });
 
+    // Set up cleanup when popover is destroyed
+    let popover_for_cleanup = popover.clone();
+    popover.connect_destroy(move |_| {
+      DROPDOWN_INSTANCES.with(|instances| {
+        let mut instances = instances.borrow_mut();
+        instances.retain(|p| p != &popover_for_cleanup);
+      });
+    });
+
     dropdown_button.setup_keyboard_navigation();
     dropdown_button
   }
@@ -511,7 +520,7 @@ impl DropdownButton {
       let event_controller = gtk::GestureClick::new();
       item_container.add_controller(event_controller.clone());
 
-      event_controller.connect_pressed(move |_, _, _, _| {
+      event_controller.connect_released(move |_, _, _, _| {
         println!("SUBMENU: Navigating to: {}", item_id);
         menu_stack.borrow_mut().push(current_items.borrow().clone());
         menu_breadcrumbs.borrow_mut().push(item_label.clone());
@@ -527,7 +536,7 @@ impl DropdownButton {
       let event_controller = gtk::GestureClick::new();
       item_container.add_controller(event_controller.clone());
 
-      event_controller.connect_pressed(move |_, _, _, _| {
+      event_controller.connect_released(move |_, _, _, _| {
         println!("REGULAR: Closing popover for: {}", item_id);
         popover.popdown();
 
@@ -632,7 +641,7 @@ impl DropdownButton {
     let current_items = self.menu_items.clone();
     let dropdown_clone = self.clone();
 
-    event_controller.connect_pressed(move |_, _, _, _| {
+    event_controller.connect_released(move |_, _, _, _| {
       println!("Back button clicked!");
       {
         let stack_size = menu_stack.borrow().len();
@@ -655,15 +664,23 @@ impl DropdownButton {
     item_container.upcast()
   }
 
-  fn close_all_other_dropdowns(_current_popover: &gtk::Popover) {
-    // Simple approach: just close all other popovers we know about
+  fn close_all_other_dropdowns(current_popover: &gtk::Popover) {
     DROPDOWN_INSTANCES.with(|instances| {
-      let instances = instances.borrow();
-      for popover in instances.iter() {
-        if popover.is_visible() {
-          popover.popdown();
+      let mut instances = instances.borrow_mut();
+      
+      // Clean up any destroyed popovers and close visible ones
+      instances.retain(|popover| {
+        if let Some(_parent) = popover.parent() {
+          // Popover still has a parent, it's valid
+          if popover != current_popover && popover.is_visible() {
+            popover.popdown();
+          }
+          true
+        } else {
+          // Popover has no parent, it's been destroyed - remove it
+          false
         }
-      }
+      });
     });
   }
 
