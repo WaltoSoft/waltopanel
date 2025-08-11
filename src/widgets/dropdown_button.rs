@@ -1,61 +1,12 @@
-use gtk::gdk;
-use gtk::glib;
-use gtk::prelude::*;
-use std::cell::RefCell;
-use std::rc::Rc;
+use gtk::{gdk, glib, {prelude::*}};
+use std::{{cell::RefCell},{rc::Rc}};
+
+use crate::models::MenuItem;
 
 thread_local! {
   static DROPDOWN_INSTANCES: RefCell<Vec<gtk::Popover>> = RefCell::new(Vec::new());
 }
 
-#[derive(Clone)]
-pub struct MenuItem {
-  pub id: String,
-  pub label: String,
-  pub icon: Option<String>,
-  pub is_toggled: bool,
-  pub is_separator: bool,
-  pub submenu: Option<Vec<MenuItem>>,
-}
-
-impl MenuItem {
-  pub fn new(id: &str, label: &str) -> Self {
-    Self {
-      id: id.to_string(),
-      label: label.to_string(),
-      icon: None,
-      is_toggled: false,
-      is_separator: false,
-      submenu: None,
-    }
-  }
-
-  pub fn with_icon(mut self, icon: &str) -> Self {
-    self.icon = Some(icon.to_string());
-    self
-  }
-
-  pub fn toggled(mut self) -> Self {
-    self.is_toggled = true;
-    self
-  }
-
-  pub fn with_submenu(mut self, submenu: Vec<MenuItem>) -> Self {
-    self.submenu = Some(submenu);
-    self
-  }
-
-  pub fn separator() -> Self {
-    Self {
-      id: String::new(),
-      label: String::new(),
-      icon: None,
-      is_toggled: false,
-      is_separator: true,
-      submenu: None,
-    }
-  }
-}
 
 #[derive(Clone)]
 pub struct DropdownButton {
@@ -64,39 +15,34 @@ pub struct DropdownButton {
   button: gtk::Button,
   popover: gtk::Popover,
   focused_item_index: Rc<RefCell<Option<usize>>>,
-  menu_containers: Rc<RefCell<Vec<gtk::Box>>>,
-  current_menu_stack: Rc<RefCell<Vec<Vec<MenuItem>>>>,
-  menu_breadcrumbs: Rc<RefCell<Vec<String>>>,
-  _popover_rc: Rc<gtk::Popover>,
+  menu_boxes: Rc<RefCell<Vec<gtk::Box>>>,
+  sub_menu_stack: Rc<RefCell<Vec<Vec<MenuItem>>>>,
+  sub_menu_breadcrumbs: Rc<RefCell<Vec<String>>>,
 }
 
 impl DropdownButton {
   pub fn new() -> Self {
     let button = gtk::Button::new();
+
     let popover = gtk::Popover::builder()
-      .autohide(false) // Disable autohide to see if it's interfering
+      .autohide(false)
       .has_arrow(false)
-      .position(gtk::PositionType::Bottom) // Panel back at top, so dropdowns below
+      .position(gtk::PositionType::Bottom)
       .can_focus(true)
       .focusable(true)
       .build();
 
-    // GTK4 automatically constrains to window by default
-
     popover.set_parent(&button);
 
     let menu_items = Rc::new(RefCell::new(Vec::new()));
-
     let popover_clone = popover.clone();
     let button_clone = button.clone();
+
     button.connect_clicked(move |_| {
       if popover_clone.is_visible() {
-        // If this popover is already open, close it (toggle behavior)
         popover_clone.popdown();
       } else {
-        // Close all other dropdowns first, then open this one
         Self::close_all_other_dropdowns(&popover_clone);
-        // Update alignment and show this one
         Self::update_popover_alignment(&popover_clone, &button_clone);
         popover_clone.popup();
         popover_clone.grab_focus();
@@ -109,18 +55,15 @@ impl DropdownButton {
       menu_items: menu_items.clone(),
       on_item_selected: Rc::new(RefCell::new(None)),
       focused_item_index: Rc::new(RefCell::new(None)),
-      menu_containers: Rc::new(RefCell::new(Vec::new())),
-      current_menu_stack: Rc::new(RefCell::new(Vec::new())),
-      menu_breadcrumbs: Rc::new(RefCell::new(Vec::new())),
-      _popover_rc: Rc::new(popover.clone()),
+      menu_boxes: Rc::new(RefCell::new(Vec::new())),
+      sub_menu_stack: Rc::new(RefCell::new(Vec::new())),
+      sub_menu_breadcrumbs: Rc::new(RefCell::new(Vec::new())),
     };
 
-    // Register this popover in the thread-local list
     DROPDOWN_INSTANCES.with(|instances| {
       instances.borrow_mut().push(popover.clone());
     });
 
-    // Set up cleanup when popover is destroyed
     let popover_for_cleanup = popover.clone();
     popover.connect_destroy(move |_| {
       DROPDOWN_INSTANCES.with(|instances| {
@@ -177,22 +120,20 @@ impl DropdownButton {
     let key_controller = gtk::EventControllerKey::new();
     let focused_index = self.focused_item_index.clone();
     let menu_items = self.menu_items.clone();
-    let menu_containers = self.menu_containers.clone();
+    let menu_boxes = self.menu_boxes.clone();
     let callback = self.on_item_selected.clone();
     let popover = self.popover.clone();
-    let menu_stack = self.current_menu_stack.clone();
-    let menu_breadcrumbs = self.menu_breadcrumbs.clone();
+    let menu_stack = self.sub_menu_stack.clone();
+    let sub_menu_breadcrumbs = self.sub_menu_breadcrumbs.clone();
     let dropdown_self = self.clone();
 
     key_controller.connect_key_pressed(move |_, key, _, _| {
-      // Get the actual number of navigable containers (includes back button in submenus)
-      let container_count = menu_containers.borrow().len();
+      let container_count = menu_boxes.borrow().len();
 
       if container_count == 0 {
         return false.into();
       }
 
-      // For Enter key, get the focused item data we need
       let focused_item_data = if matches!(key, gdk::Key::Return | gdk::Key::KP_Enter) {
         if let Some(focused_idx) = *focused_index.borrow() {
           let items = menu_items.borrow();
@@ -220,7 +161,7 @@ impl DropdownButton {
           };
           *current_focused = Some(new_index);
           drop(current_focused);
-          Self::update_visual_focus(&menu_containers, &[], Some(new_index));
+          Self::update_visual_focus(&menu_boxes, &[], Some(new_index));
           true.into()
         }
         gdk::Key::Up => {
@@ -232,16 +173,14 @@ impl DropdownButton {
           };
           *current_focused = Some(new_index);
           drop(current_focused);
-          Self::update_visual_focus(&menu_containers, &[], Some(new_index));
+          Self::update_visual_focus(&menu_boxes, &[], Some(new_index));
           true.into()
         }
         gdk::Key::Return | gdk::Key::KP_Enter => {
-          // Get the focused item data and handle it like the original callback
           if let Some((item_id, submenu)) = focused_item_data {
             if submenu.is_some() {
               // Submenu navigation handled by right arrow key
             } else {
-              // Regular item - close and callback
               popover.popdown();
               if let Some(cb) = callback.borrow().as_ref() {
                 cb(&item_id, false);
@@ -251,9 +190,7 @@ impl DropdownButton {
           true.into()
         }
         gdk::Key::Right => {
-          // Navigate into submenu if current focused item has one
           if let Some(focused_idx) = *focused_index.borrow() {
-            // Get the submenu data first, then modify the menu state
             let (submenu_items, item_label) = {
               let items = menu_items.borrow();
               let non_separator_items: Vec<_> = items
@@ -274,22 +211,19 @@ impl DropdownButton {
             };
 
             if let Some(submenu) = submenu_items {
-              // Defer all the state changes to avoid borrow conflicts
               let dropdown_clone = dropdown_self.clone();
               let menu_items_clone = menu_items.clone();
               let menu_stack_clone = menu_stack.clone();
-              let menu_breadcrumbs_clone = menu_breadcrumbs.clone();
+              let sub_menu_breadcrumbs_clone = sub_menu_breadcrumbs.clone();
               let focused_index_clone = focused_index.clone();
               let submenu_clone = submenu.clone();
               let item_label_clone = item_label.clone();
 
               glib::idle_add_local_once(move || {
-                // Save current menu state first
                 let current_menu = menu_items_clone.borrow().clone();
 
-                // Now modify the menu state
                 menu_stack_clone.borrow_mut().push(current_menu);
-                menu_breadcrumbs_clone.borrow_mut().push(item_label_clone);
+                sub_menu_breadcrumbs_clone.borrow_mut().push(item_label_clone);
                 *menu_items_clone.borrow_mut() = submenu_clone;
                 *focused_index_clone.borrow_mut() = None;
                 dropdown_clone.rebuild_menu();
@@ -297,22 +231,20 @@ impl DropdownButton {
               return true.into();
             }
           }
-          false.into() // No submenu to navigate to
+          false.into()
         }
         gdk::Key::Left => {
-          // Navigate back to parent menu if in a submenu
           if !menu_stack.borrow().is_empty() {
-            // Defer all the state changes to avoid borrow conflicts
             let dropdown_clone = dropdown_self.clone();
             let menu_items_clone = menu_items.clone();
             let menu_stack_clone = menu_stack.clone();
-            let menu_breadcrumbs_clone = menu_breadcrumbs.clone();
+            let sub_menu_breadcrumbs_clone = sub_menu_breadcrumbs.clone();
             let focused_index_clone = focused_index.clone();
 
             glib::idle_add_local_once(move || {
               let previous_menu = menu_stack_clone.borrow_mut().pop();
               if let Some(previous_menu) = previous_menu {
-                menu_breadcrumbs_clone.borrow_mut().pop();
+                sub_menu_breadcrumbs_clone.borrow_mut().pop();
                 *menu_items_clone.borrow_mut() = previous_menu;
                 *focused_index_clone.borrow_mut() = None;
                 dropdown_clone.rebuild_menu();
@@ -320,7 +252,7 @@ impl DropdownButton {
             });
             return true.into();
           }
-          false.into() // Not in submenu or can't go back
+          false.into()
         }
         gdk::Key::Escape => {
           popover.popdown();
@@ -332,19 +264,17 @@ impl DropdownButton {
 
     self.popover.add_controller(key_controller);
 
-    // Reset focus when popover opens
     let focused_index_clone = self.focused_item_index.clone();
-    let menu_containers_clone = self.menu_containers.clone();
+    let menu_boxes_clone = self.menu_boxes.clone();
     let menu_items_clone = self.menu_items.clone();
 
-    let menu_stack_clone = self.current_menu_stack.clone();
-    let menu_breadcrumbs_clone = self.menu_breadcrumbs.clone();
+    let menu_stack_clone = self.sub_menu_stack.clone();
+    let sub_menu_breadcrumbs_clone = self.sub_menu_breadcrumbs.clone();
 
     self.popover.connect_show(move |_| {
       *focused_index_clone.borrow_mut() = None;
-      // Reset navigation state when popover opens
       menu_stack_clone.borrow_mut().clear();
-      menu_breadcrumbs_clone.borrow_mut().clear();
+      sub_menu_breadcrumbs_clone.borrow_mut().clear();
 
       let items = menu_items_clone.borrow();
       let non_separator_items: Vec<_> = items
@@ -352,27 +282,20 @@ impl DropdownButton {
         .enumerate()
         .filter(|(_, item)| !item.is_separator)
         .collect();
-      Self::update_visual_focus(&menu_containers_clone, &non_separator_items, None);
+      Self::update_visual_focus(&menu_boxes_clone, &non_separator_items, None);
     });
   }
 
   fn update_visual_focus(
-    menu_containers: &Rc<RefCell<Vec<gtk::Box>>>,
+    menu_boxes: &Rc<RefCell<Vec<gtk::Box>>>,
     _non_separator_items: &[(usize, &MenuItem)],
     focused_index: Option<usize>,
   ) {
-    let containers = menu_containers.borrow();
-    println!(
-      "Updating focus, containers: {}, focused: {:?}",
-      containers.len(),
-      focused_index
-    );
+    let containers = menu_boxes.borrow();
 
     for (container_idx, container) in containers.iter().enumerate() {
       if let Some(focused_idx) = focused_index {
         if container_idx == focused_idx {
-          println!("Setting focus styling for container {}", container_idx);
-          // Use GTK selection colors
           let css_provider = gtk::CssProvider::new();
           css_provider.load_from_data(
             "* { background-color: @theme_selected_bg_color; color: @theme_selected_fg_color; }",
@@ -381,7 +304,6 @@ impl DropdownButton {
             .style_context()
             .add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
         } else {
-          // Remove any custom styling
           let css_provider = gtk::CssProvider::new();
           css_provider.load_from_data("* { background-color: transparent; }");
           container
@@ -389,7 +311,6 @@ impl DropdownButton {
             .add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
         }
       } else {
-        // Remove any custom styling
         let css_provider = gtk::CssProvider::new();
         css_provider.load_from_data("* { background-color: transparent; }");
         container
@@ -424,26 +345,17 @@ impl DropdownButton {
   }
 
   fn rebuild_menu(&self) {
-    println!("DEBUG: rebuild_menu() called");
     if let Some(_child) = self.popover.child() {
-      println!("DEBUG: Removing existing child from popover");
       self.popover.set_child(gtk::Widget::NONE);
     }
 
     let items = self.menu_items.borrow();
     if items.is_empty() {
-      println!("DEBUG: No items, returning early");
       return;
     }
 
-    println!(
-      "DEBUG: Creating new menu container with {} items",
-      items.len()
-    );
     let menu_box = self.create_menu_container(&items);
-    println!("DEBUG: Setting new child on popover");
     self.popover.set_child(Some(&menu_box));
-    println!("DEBUG: rebuild_menu() completed");
   }
 
   fn create_menu_container(&self, items: &[MenuItem]) -> gtk::Widget {
@@ -455,8 +367,7 @@ impl DropdownButton {
 
     let mut containers = Vec::new();
 
-    // Add back button if we're in a submenu
-    let has_stack = !self.current_menu_stack.borrow().is_empty();
+    let has_stack = !self.sub_menu_stack.borrow().is_empty();
     if has_stack {
       let back_item = self.create_back_button();
       if let Some(container) = back_item.downcast_ref::<gtk::Box>() {
@@ -464,7 +375,6 @@ impl DropdownButton {
       }
       menu_box.append(&back_item);
 
-      // Add separator after back button
       let separator = gtk::Separator::builder()
         .orientation(gtk::Orientation::Horizontal)
         .css_classes(vec!["dropdown-separator".to_string()])
@@ -481,7 +391,7 @@ impl DropdownButton {
         menu_box.append(&separator);
       } else {
         let menu_item = self.create_menu_item(item);
-        // Store the container for keyboard navigation
+
         if let Some(container) = menu_item.downcast_ref::<gtk::Box>() {
           containers.push(container.clone());
         }
@@ -489,7 +399,7 @@ impl DropdownButton {
       }
     }
 
-    *self.menu_containers.borrow_mut() = containers;
+    *self.menu_boxes.borrow_mut() = containers;
     menu_box.upcast()
   }
 
@@ -503,32 +413,26 @@ impl DropdownButton {
       item_container.add_css_class("toggled");
     }
 
-    // Add hover styling that matches keyboard navigation
     self.setup_hover_styling(&item_container);
 
-    // Handle submenu vs regular item clicks differently
     if item.submenu.is_some() {
-      // Submenu navigation - DON'T close the popover
       let submenu_items = item.submenu.clone().unwrap();
       let item_label = item.label.clone();
-      let menu_stack = self.current_menu_stack.clone();
-      let menu_breadcrumbs = self.menu_breadcrumbs.clone();
+      let menu_stack = self.sub_menu_stack.clone();
+      let sub_menu_breadcrumbs = self.sub_menu_breadcrumbs.clone();
       let current_items = self.menu_items.clone();
       let dropdown_clone = self.clone();
-      let item_id = item.id.clone();
 
       let event_controller = gtk::GestureClick::new();
       item_container.add_controller(event_controller.clone());
 
       event_controller.connect_released(move |_, _, _, _| {
-        println!("SUBMENU: Navigating to: {}", item_id);
         menu_stack.borrow_mut().push(current_items.borrow().clone());
-        menu_breadcrumbs.borrow_mut().push(item_label.clone());
+        sub_menu_breadcrumbs.borrow_mut().push(item_label.clone());
         *current_items.borrow_mut() = submenu_items.clone();
         dropdown_clone.rebuild_menu();
       });
     } else {
-      // Regular item - close popover and call main callback
       let item_id = item.id.clone();
       let popover = self.popover.clone();
       let callback_ref = self.on_item_selected.clone();
@@ -537,7 +441,6 @@ impl DropdownButton {
       item_container.add_controller(event_controller.clone());
 
       event_controller.connect_released(move |_, _, _, _| {
-        println!("REGULAR: Closing popover for: {}", item_id);
         popover.popdown();
 
         if let Some(callback) = callback_ref.borrow().as_ref() {
@@ -576,7 +479,6 @@ impl DropdownButton {
     content_grid.attach(&label, col, 0, 1, 1);
     col += 1;
 
-    // Right-aligned column for submenu arrows
     if item.submenu.is_some() {
       let submenu_arrow = gtk::Image::from_icon_name("go-next-symbolic");
       submenu_arrow.set_pixel_size(12);
@@ -598,7 +500,6 @@ impl DropdownButton {
       .css_classes(vec!["dropdown-item".to_string()])
       .build();
 
-    // Add hover styling that matches keyboard navigation
     self.setup_hover_styling(&item_container);
 
     let event_controller = gtk::GestureClick::new();
@@ -608,14 +509,12 @@ impl DropdownButton {
 
     let mut col = 0;
 
-    // Back arrow icon
     let back_icon = gtk::Image::from_icon_name("go-previous-symbolic");
     back_icon.set_pixel_size(16);
     content_grid.attach(&back_icon, col, 0, 1, 1);
     col += 1;
 
-    // Parent menu name as back label
-    let back_label = if let Some(title) = self.menu_breadcrumbs.borrow().last() {
+    let back_label = if let Some(title) = self.sub_menu_breadcrumbs.borrow().last() {
       title.clone()
     } else {
       "Back".to_string()
@@ -629,35 +528,22 @@ impl DropdownButton {
     content_grid.attach(&label, col, 0, 1, 1);
     col += 1;
 
-    // Empty space for arrow column alignment
     let arrow_placeholder = gtk::Box::builder().width_request(16).build();
     content_grid.attach(&arrow_placeholder, col, 0, 1, 1);
 
     item_container.append(&content_grid);
 
-    // Handle back navigation
-    let menu_stack = self.current_menu_stack.clone();
-    let menu_breadcrumbs = self.menu_breadcrumbs.clone();
+    let menu_stack = self.sub_menu_stack.clone();
+    let sub_menu_breadcrumbs = self.sub_menu_breadcrumbs.clone();
     let current_items = self.menu_items.clone();
     let dropdown_clone = self.clone();
 
     event_controller.connect_released(move |_, _, _, _| {
-      println!("Back button clicked!");
-      {
-        let stack_size = menu_stack.borrow().len();
-        println!("Stack size: {}", stack_size);
-      }
-
       let previous_menu = menu_stack.borrow_mut().pop();
       if let Some(previous_menu) = previous_menu {
-        menu_breadcrumbs.borrow_mut().pop();
+        sub_menu_breadcrumbs.borrow_mut().pop();
         *current_items.borrow_mut() = previous_menu;
         dropdown_clone.rebuild_menu();
-
-        let new_stack_size = menu_stack.borrow().len();
-        println!("Navigated back, new stack size: {}", new_stack_size);
-      } else {
-        println!("No previous menu to go back to");
       }
     });
 
@@ -668,16 +554,13 @@ impl DropdownButton {
     DROPDOWN_INSTANCES.with(|instances| {
       let mut instances = instances.borrow_mut();
       
-      // Clean up any destroyed popovers and close visible ones
       instances.retain(|popover| {
         if let Some(_parent) = popover.parent() {
-          // Popover still has a parent, it's valid
           if popover != current_popover && popover.is_visible() {
             popover.popdown();
           }
           true
         } else {
-          // Popover has no parent, it's been destroyed - remove it
           false
         }
       });
@@ -685,7 +568,6 @@ impl DropdownButton {
   }
 
   fn update_popover_alignment(popover: &gtk::Popover, button: &gtk::Button) {
-    // Get screen dimensions and button position
     if let Some(surface) = button.native().and_then(|n| n.surface()) {
       let display = surface.display();
       let monitor = display
@@ -693,52 +575,32 @@ impl DropdownButton {
         .unwrap_or_else(|| display.monitors().item(0).unwrap().downcast().unwrap());
       let monitor_geometry = monitor.geometry();
 
-      // Get button position and size
       let (button_x, _) = button
         .translate_coordinates(&button.root().unwrap(), 0.0, 0.0)
         .unwrap_or((0.0, 0.0));
 
       let button_width = button.allocated_width();
-
-      // Estimate dropdown menu size
-      let menu_width = 200; // min-width from CSS
-
-      // Calculate available space to the right
+      let menu_width = 200;
       let space_right = monitor_geometry.width() - (button_x as i32 + button_width);
 
-      // Set alignment based on available space - this is what actually works!
       if space_right >= menu_width {
-        // Enough space on right - align left edges
         popover.set_halign(gtk::Align::Start);
-        println!(
-          "Setting popover halign to Start - space_right: {}",
-          space_right
-        );
       } else {
-        // Not enough space on right - align right edges
         popover.set_halign(gtk::Align::End);
-        println!(
-          "Setting popover halign to End - space_right: {}",
-          space_right
-        );
       }
     }
   }
 
   fn setup_hover_styling(&self, item_container: &gtk::Box) {
-    // Create motion controller for hover effects
     let motion_controller = gtk::EventControllerMotion::new();
 
-    // On mouse enter - clear keyboard focus and apply hover styling
     let item_container_enter = item_container.clone();
     let focused_index = self.focused_item_index.clone();
-    let menu_containers = self.menu_containers.clone();
+    let menu_boxes = self.menu_boxes.clone();
     motion_controller.connect_enter(move |_, _, _| {
-      // Clear keyboard focus when mouse takes over
       *focused_index.borrow_mut() = None;
-      Self::update_visual_focus(&menu_containers, &[], None);
+      Self::update_visual_focus(&menu_boxes, &[], None);
 
-      // Apply hover styling
       let css_provider = gtk::CssProvider::new();
       css_provider.load_from_data(
         "* { background-color: @theme_selected_bg_color; color: @theme_selected_fg_color; }",
@@ -748,7 +610,6 @@ impl DropdownButton {
         .add_provider(&css_provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
     });
 
-    // On mouse leave - remove hover styling
     let item_container_leave = item_container.clone();
     motion_controller.connect_leave(move |_| {
       let css_provider = gtk::CssProvider::new();
