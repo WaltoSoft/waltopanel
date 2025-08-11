@@ -49,6 +49,21 @@ impl DropdownButton {
       }
     });
 
+    // Add hover behavior for menu switching
+    let hover_controller = gtk::EventControllerMotion::new();
+    let popover_hover = popover.clone();
+    let button_hover = button.clone();
+    hover_controller.connect_enter(move |_, _, _| {
+      // Check if any dropdown is currently open
+      if Self::any_dropdown_is_open() {
+        Self::close_all_other_dropdowns(&popover_hover);
+        Self::update_popover_alignment(&popover_hover, &button_hover);
+        popover_hover.popup();
+        popover_hover.grab_focus();
+      }
+    });
+    button.add_controller(hover_controller);
+
     let dropdown_button = Self {
       button: button.clone(),
       popover: popover.clone(),
@@ -548,6 +563,14 @@ impl DropdownButton {
     });
 
     item_container.upcast()
+  }
+
+  fn any_dropdown_is_open() -> bool {
+    DROPDOWN_INSTANCES.with(|instances| {
+      instances.borrow().iter().any(|popover| {
+        popover.parent().is_some() && popover.is_visible()
+      })
+    })
   }
 
   fn close_all_other_dropdowns(current_popover: &gtk::Popover) {
