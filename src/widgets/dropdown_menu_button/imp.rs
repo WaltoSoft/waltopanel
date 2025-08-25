@@ -7,9 +7,9 @@ use super::state::MenuState;
 use crate::models::MenuItem;
 
 pub struct DropdownMenuButtonPrivate {
-  pub button: OnceCell<gtk::Button>,
-  pub popover: OnceCell<gtk::Popover>,
-  pub state: MenuState,
+  button: OnceCell<gtk::Button>,
+  popover: OnceCell<gtk::Popover>,
+  state: MenuState,
 }
 
 impl Default for DropdownMenuButtonPrivate {
@@ -91,6 +91,57 @@ impl DropdownMenuButtonPrivate {
 
   fn emit_item_toggled(&self, item_id: &str, toggled_state: bool) {
     self.obj().emit_by_name::<()>("item-toggled", &[&item_id, &toggled_state]);
+  }
+
+  /// Set the button text
+  pub fn set_button_text(&self, text: &str) {
+    if let Some(button) = self.button.get() {
+      button.set_label(text);
+    }
+  }
+
+  /// Set the button icon
+  pub fn set_button_icon(&self, icon_name: &str) {
+    if let Some(button) = self.button.get() {
+      let icon = gtk::Image::from_icon_name(icon_name);
+      button.set_child(Some(&icon));
+    }
+  }
+
+  /// Set both icon and text
+  pub fn set_button_icon_and_text(&self, icon_name: &str, text: &str) {
+    if let Some(button) = self.button.get() {
+      let container = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(6)
+        .build();
+
+      let icon = gtk::Image::from_icon_name(icon_name);
+      let label = gtk::Label::new(Some(text));
+
+      container.append(&icon);
+      container.append(&label);
+
+      button.set_child(Some(&container));
+    }
+  }
+
+  /// Set the menu items
+  pub fn set_menu_items(&self, items: Vec<MenuItem>) {
+    *self.state.menu_items.borrow_mut() = items;
+    self.rebuild_menu();
+  }
+
+  /// Set an item's toggled state
+  pub fn set_item_toggled_state(&self, item_id: &str, toggled: bool) {
+    let mut items = self.state.menu_items.borrow_mut();
+    if let Some(item) = items.iter_mut().find(|i| i.id == item_id) {
+      if item.is_toggleable {
+        item.is_toggled = toggled;
+      }
+    }
+    drop(items);
+    self.rebuild_menu();
   }
 
   fn setup_button_behavior(&self) {
@@ -281,7 +332,17 @@ impl DropdownMenuButtonPrivate {
           
           let imp = obj.imp();
           if is_toggleable {
-            let new_state = obj.toggle_item(&item_id);
+            // Toggle the item state
+            let new_state = {
+              let mut items = imp.state.menu_items.borrow_mut();
+              if let Some(item) = items.iter_mut().find(|i| i.id == item_id) {
+                item.is_toggled = !item.is_toggled;
+                item.is_toggled
+              } else {
+                false
+              }
+            };
+            imp.rebuild_menu();
             imp.emit_item_toggled(&item_id, new_state);
           } else {
             imp.emit_item_selected(&item_id);

@@ -16,46 +16,39 @@ glib::wrapper! {
     @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
+//-------------------------------------------------------------------------------------------------
+// Public API
+//-------------------------------------------------------------------------------------------------
 impl DropdownMenuButton {
   pub fn new() -> Self {
     glib::Object::new()
   }
 
   pub fn set_text(&self, text: &str) {
-    if let Some(button) = self.imp().button.get() {
-      button.set_label(text);
-    }
+    self.imp().set_button_text(text);
   }
 
   pub fn set_icon(&self, icon_name: &str) {
-    if let Some(button) = self.imp().button.get() {
-      let icon = gtk::Image::from_icon_name(icon_name);
-      button.set_child(Some(&icon));
-    }
+    self.imp().set_button_icon(icon_name);
   }
 
   pub fn set_icon_and_text(&self, icon_name: &str, text: &str) {
-    if let Some(button) = self.imp().button.get() {
-      let container = gtk::Box::builder()
-        .orientation(gtk::Orientation::Horizontal)
-        .spacing(6)
-        .build();
-
-      let icon = gtk::Image::from_icon_name(icon_name);
-      let label = gtk::Label::new(Some(text));
-
-      container.append(&icon);
-      container.append(&label);
-
-      button.set_child(Some(&container));
-    }
+    self.imp().set_button_icon_and_text(icon_name, text);
   }
 
   pub fn set_menu_items(&self, items: Vec<MenuItem>) {
-    *self.imp().state.menu_items.borrow_mut() = items;
-    self.imp().rebuild_menu();
+    self.imp().set_menu_items(items);
   }
 
+  pub fn set_item_toggled(&self, item_id: &str, toggled: bool) {
+    self.imp().set_item_toggled_state(item_id, toggled);
+  }
+}
+
+//-------------------------------------------------------------------------------------------------
+// Event Handlers Provided
+//-------------------------------------------------------------------------------------------------
+impl DropdownMenuButton {
   pub fn connect_item_selected<F>(&self, callback: F) -> glib::SignalHandlerId
   where
     F: Fn(&Self, &str) + 'static,
@@ -79,34 +72,5 @@ impl DropdownMenuButton {
       callback(&dropdown, &item_id, toggled_state);
       None
     })
-  }
-
-  pub fn toggle_item(&self, item_id: &str) -> bool {
-    let new_state = {
-      let mut items = self.imp().state.menu_items.borrow_mut();
-      if let Some(item) = items.iter_mut().find(|i| i.id == item_id) {
-        if item.is_toggleable {
-          item.is_toggled = !item.is_toggled;
-          item.is_toggled
-        } else {
-          item.is_toggled
-        }
-      } else {
-        false
-      }
-    };
-    self.imp().rebuild_menu();
-    new_state
-  }
-
-  pub fn set_item_toggled(&self, item_id: &str, toggled: bool) {
-    let mut items = self.imp().state.menu_items.borrow_mut();
-    if let Some(item) = items.iter_mut().find(|i| i.id == item_id) {
-      if item.is_toggleable {
-        item.is_toggled = toggled;
-      }
-    }
-    drop(items);
-    self.imp().rebuild_menu();
   }
 }

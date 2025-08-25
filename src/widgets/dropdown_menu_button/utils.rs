@@ -77,27 +77,6 @@ impl DropdownUtils {
     icon
   }
 
-  pub fn calculate_next_focus_index(
-    current: Option<usize>,
-    total_items: usize,
-    direction: FocusDirection,
-  ) -> Option<usize> {
-    if total_items == 0 {
-      return None;
-    }
-
-    match direction {
-      FocusDirection::Down => match current {
-        None => Some(0),
-        Some(idx) => Some((idx + 1) % total_items),
-      },
-      FocusDirection::Up => match current {
-        None => Some(total_items - 1),
-        Some(0) => Some(total_items - 1),
-        Some(idx) => Some(idx - 1),
-      },
-    }
-  }
 
   pub fn get_back_button_label(breadcrumbs: &[String]) -> String {
     breadcrumbs.last().cloned().unwrap_or_else(|| "Back".to_string())
