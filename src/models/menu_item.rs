@@ -4,6 +4,7 @@ pub struct MenuItem {
   pub label: String,
   pub icon: Option<String>,
   pub is_toggled: bool,
+  pub is_toggleable: bool,
   pub is_separator: bool,
   pub submenu: Option<Vec<MenuItem>>,
 }
@@ -15,6 +16,7 @@ impl MenuItem {
       label: label.to_string(),
       icon: None,
       is_toggled: false,
+      is_toggleable: false,
       is_separator: false,
       submenu: None,
     }
@@ -27,6 +29,7 @@ impl MenuItem {
 
   pub fn toggled(mut self) -> Self {
     self.is_toggled = true;
+    self.is_toggleable = true;
     self
   }
 
@@ -41,6 +44,7 @@ impl MenuItem {
       label: String::new(),
       icon: None,
       is_toggled: false,
+      is_toggleable: false,
       is_separator: true,
       submenu: None,
     }

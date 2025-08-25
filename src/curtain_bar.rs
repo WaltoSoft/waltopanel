@@ -3,8 +3,8 @@ use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::models::{MenuItem, CurtainBarConfig, Margins};
-use crate::widgets::DropdownButton;
+use crate::models::{CurtainBarConfig, Margins, MenuItem};
+use crate::widgets::dropdown_menu_button::DropdownMenuButton;
 
 pub struct CurtainBarBuilder {
   config: CurtainBarConfig,
@@ -52,7 +52,7 @@ pub struct CurtainBar {
   left_box: gtk::Box,
   center_box: gtk::Box,
   right_box: gtk::Box,
-  dropdowns: Rc<RefCell<Vec<DropdownButton>>>
+  dropdowns: Rc<RefCell<Vec<DropdownMenuButton>>>,
 }
 
 impl CurtainBar {
@@ -86,7 +86,7 @@ impl CurtainBar {
       left_box,
       center_box,
       right_box,
-      dropdowns: Rc::new(RefCell::new(Vec::new()))
+      dropdowns: Rc::new(RefCell::new(Vec::new())),
     };
 
     Ok(curtain_bar)
@@ -179,9 +179,15 @@ impl CurtainBar {
     self.window.present();
   }
 
+  fn setup_dropdown(&self, dropdown: DropdownMenuButton) -> DropdownMenuButton {
+    dropdown
+  }
+
   pub fn add_sample_menus(&mut self) {
     // File menu
-    let file_menu = DropdownButton::new().with_text("File");
+    let file_menu = DropdownMenuButton::builder()
+      .with_text("File")
+      .build();
 
     let file_items = vec![
       MenuItem::new("new", "New File").with_icon("document-new-symbolic"),
@@ -201,43 +207,33 @@ impl CurtainBar {
       MenuItem::new("quit", "Quit").with_icon("application-exit-symbolic"),
     ];
 
-    let file_menu_clone = file_menu.clone();
-    let file_menu_with_callback = file_menu.on_item_toggled(move |item_id, _| {
-      println!("MAIN CALLBACK TRIGGERED for item: {}", item_id);
-
-      // Check if this is a submenu item - if so, ignore the callback
-      if item_id == "recent" {
-        println!("Ignoring callback for submenu item: {}", item_id);
-        return;
-      }
-
-      if item_id == "save" {
-        let new_state = file_menu_clone.toggle_item(item_id);
-        println!(
-          "Toggled: {} ({})",
-          item_id,
-          if new_state { "ON" } else { "OFF" }
-        );
-      } else {
-        println!("Selected: {}", item_id);
-      }
+    file_menu.connect_item_selected(|_, item_id| {
+      println!("File item selected: {}", item_id);
     });
 
-    file_menu_with_callback.set_menu_items(file_items);
-    self.add_widget_to_left(file_menu_with_callback.widget());
-    self.dropdowns.borrow_mut().push(file_menu_with_callback);
+    file_menu.connect_item_toggled(|_, item_id, toggled_state| {
+      println!("File item toggled: {} ({})", item_id, if toggled_state { "ON" } else { "OFF" });
+    });
+
+    let file_menu_setup = self.setup_dropdown(file_menu);
+    file_menu_setup.set_menu_items(file_items);
+    self.add_widget_to_left(&file_menu_setup);
+    self.dropdowns.borrow_mut().push(file_menu_setup);
 
     // View menu
-    let view_menu =
-      DropdownButton::new()
-        .with_text("View")
-        .on_item_toggled(|item_id, is_toggled| {
-          println!(
-            "View toggled: {} ({})",
-            item_id,
-            if is_toggled { "ON" } else { "OFF" }
-          );
-        });
+    let view_menu = DropdownMenuButton::builder()
+      .with_text("View")
+      .build();
+    
+    view_menu.connect_item_selected(|_, item_id| {
+      println!("View item selected: {}", item_id);
+    });
+
+    view_menu.connect_item_toggled(|_, item_id, toggled_state| {
+      println!("View item toggled: {} ({})", item_id, if toggled_state { "ON" } else { "OFF" });
+    });
+    
+    let view_menu = self.setup_dropdown(view_menu);
 
     let view_items = vec![
       MenuItem::new("fullscreen", "Fullscreen").with_icon("view-fullscreen-symbolic"),
@@ -254,19 +250,23 @@ impl CurtainBar {
     ];
 
     view_menu.set_menu_items(view_items);
-    self.add_widget_to_left(view_menu.widget());
+    self.add_widget_to_left(&view_menu);
     self.dropdowns.borrow_mut().push(view_menu);
 
     // Settings menu with icon
-    let settings_menu = DropdownButton::new()
+    let settings_menu = DropdownMenuButton::builder()
       .with_icon_and_text("preferences-system-symbolic", "Settings")
-      .on_item_toggled(|item_id, is_toggled| {
-        println!(
-          "Settings toggled: {} ({})",
-          item_id,
-          if is_toggled { "ON" } else { "OFF" }
-        );
-      });
+      .build();
+    
+    settings_menu.connect_item_selected(|_, item_id| {
+      println!("Settings item selected: {}", item_id);
+    });
+
+    settings_menu.connect_item_toggled(|_, item_id, toggled_state| {
+      println!("Settings item toggled: {} ({})", item_id, if toggled_state { "ON" } else { "OFF" });
+    });
+    
+    let settings_menu = self.setup_dropdown(settings_menu);
 
     let settings_items = vec![
       MenuItem::new("preferences", "Preferences...").with_icon("preferences-system-symbolic"),
@@ -292,19 +292,23 @@ impl CurtainBar {
     ];
 
     settings_menu.set_menu_items(settings_items);
-    self.add_widget_to_right(settings_menu.widget());
+    self.add_widget_to_right(&settings_menu);
     self.dropdowns.borrow_mut().push(settings_menu);
 
     // User menu (icon only)
-    let user_menu = DropdownButton::new()
+    let user_menu = DropdownMenuButton::builder()
       .with_icon("avatar-default-symbolic")
-      .on_item_toggled(|item_id, is_toggled| {
-        println!(
-          "User toggled: {} ({})",
-          item_id,
-          if is_toggled { "ON" } else { "OFF" }
-        );
-      });
+      .build();
+    
+    user_menu.connect_item_selected(|_, item_id| {
+      println!("User item selected: {}", item_id);
+    });
+
+    user_menu.connect_item_toggled(|_, item_id, toggled_state| {
+      println!("User item toggled: {} ({})", item_id, if toggled_state { "ON" } else { "OFF" });
+    });
+    
+    let user_menu = self.setup_dropdown(user_menu);
 
     let user_items = vec![
       MenuItem::new("profile", "Profile").with_icon("user-info-symbolic"),
@@ -317,7 +321,7 @@ impl CurtainBar {
     ];
 
     user_menu.set_menu_items(user_items);
-    self.add_widget_to_right(user_menu.widget());
+    self.add_widget_to_right(&user_menu);
     self.dropdowns.borrow_mut().push(user_menu);
   }
 }
