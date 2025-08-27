@@ -1,18 +1,19 @@
-use gtk::glib;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
+use gtk::{glib::{self, subclass::Signal}, prelude::*, subclass::prelude::*, Align, GestureClick};
+use gtk::{BinLayout, Box, Button, Grid, Image, Label, Popover, Widget};
+use gtk::{Orientation, PositionType};
 use std::cell::{OnceCell, RefCell};
+use std::sync::OnceLock;
 
 use super::state::MenuState;
-use crate::models::MenuItem;
+use crate::{models::MenuItem, widgets::dropdown_menu_button::styling::DropdownStyling};
 
 thread_local! {
-  static DROPDOWN_INSTANCES: RefCell<Vec<gtk::Popover>> = RefCell::new(Vec::new());
+  static DROPDOWN_INSTANCES: RefCell<Vec<Popover>> = RefCell::new(Vec::new());
 }
 
 pub struct DropdownMenuButtonPrivate {
-  button: OnceCell<gtk::Button>,
-  popover: OnceCell<gtk::Popover>,
+  button: OnceCell<Button>,
+  popover: OnceCell<Popover>,
   state: MenuState,
 }
 
@@ -30,10 +31,10 @@ impl Default for DropdownMenuButtonPrivate {
 impl ObjectSubclass for DropdownMenuButtonPrivate {
   const NAME: &'static str = "DropdownMenuButton";
   type Type = super::DropdownMenuButton;
-  type ParentType = gtk::Widget;
+  type ParentType = Widget;
   
   fn class_init(klass: &mut Self::Class) {
-    klass.set_layout_manager_type::<gtk::BinLayout>();
+    klass.set_layout_manager_type::<BinLayout>();
   }
 }
 
@@ -42,24 +43,24 @@ impl ObjectImpl for DropdownMenuButtonPrivate {
     self.parent_constructed();
     
     let obj = self.obj();
-    
-    let button = gtk::Button::new();
+    let button = Button::new();
+
     button.set_parent(&*obj);
-    self.button.set(button.clone()).expect("Button should only be set once during construction");
-    
-    let popover = gtk::Popover::builder()
+
+    let popover = Popover::builder()
       .autohide(false)
       .has_arrow(false)
-      .position(gtk::PositionType::Bottom)
+      .position(PositionType::Bottom)
       .can_focus(true)
       .focusable(true)
       .build();
     
     popover.set_parent(&button);
-    self.popover.set(popover.clone()).expect("Popover should only be set once during construction");
-    
     Self::register_popover_instance(&popover);
-    
+
+    self.button.set(button.clone()).expect("Button should only be set once during construction");
+    self.popover.set(popover.clone()).expect("Popover should only be set once during construction");
+
     self.setup_button_behavior();
     self.setup_popover_handlers();
   }
@@ -73,20 +74,75 @@ impl ObjectImpl for DropdownMenuButtonPrivate {
     }
   }
   
-  fn signals() -> &'static [glib::subclass::Signal] {
-    static SIGNALS: std::sync::OnceLock<Vec<glib::subclass::Signal>> = std::sync::OnceLock::new();
+  fn signals() -> &'static [Signal] {
+    static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
     SIGNALS.get_or_init(|| {
       vec![
-        glib::subclass::Signal::builder("item-selected")
+        Signal::builder("item-selected")
           .param_types([String::static_type()])
           .build(),
-        glib::subclass::Signal::builder("item-toggled")
+        Signal::builder("item-toggled")
           .param_types([String::static_type(), bool::static_type()])
           .build(),
       ]
     })
   }
 }
+
+
+//-------------------------------------------------------------------------------------------------
+// Initialization methods
+//-------------------------------------------------------------------------------------------------
+impl DropdownMenuButtonPrivate {
+  pub fn set_button_text(&self, text: &str) {
+    if let Some(button) = self.button.get() {
+      button.set_label(text);
+    }
+  }
+
+  pub fn set_button_icon(&self, icon_name: &str) {
+    if let Some(button) = self.button.get() {
+      let icon = Image::from_icon_name(icon_name);
+      button.set_child(Some(&icon));
+    }
+  }
+
+  pub fn set_button_icon_and_text(&self, icon_name: &str, text: &str) {
+    if let Some(button) = self.button.get() {
+      let container = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(6)
+        .build();
+
+      let icon = Image::from_icon_name(icon_name);
+      let label = Label::new(Some(text));
+
+      container.append(&icon);
+      container.append(&label);
+
+      button.set_child(Some(&container));
+    }
+  }
+
+  pub fn set_menu_items(&self, items: Vec<MenuItem>) {
+    *self.state.menu_items.borrow_mut() = items;
+    self.rebuild_menu();
+  }
+
+  pub fn set_item_toggled(&self, item_id: &str, toggled: bool) {
+    let mut items = self.state.menu_items.borrow_mut();
+    
+    if let Some(item) = items.iter_mut().find(|i| i.id == item_id) {
+      if item.is_toggleable {
+        item.is_toggled = toggled;
+      }
+    }
+
+    drop(items);
+    self.rebuild_menu();
+  }
+}
+
 
 impl DropdownMenuButtonPrivate {
   fn emit_item_selected(&self, item_id: &str) {
@@ -97,56 +153,6 @@ impl DropdownMenuButtonPrivate {
     self.obj().emit_by_name::<()>("item-toggled", &[&item_id, &toggled_state]);
   }
 
-  /// Set the button text
-  pub fn set_button_text(&self, text: &str) {
-    if let Some(button) = self.button.get() {
-      button.set_label(text);
-    }
-  }
-
-  /// Set the button icon
-  pub fn set_button_icon(&self, icon_name: &str) {
-    if let Some(button) = self.button.get() {
-      let icon = gtk::Image::from_icon_name(icon_name);
-      button.set_child(Some(&icon));
-    }
-  }
-
-  /// Set both icon and text
-  pub fn set_button_icon_and_text(&self, icon_name: &str, text: &str) {
-    if let Some(button) = self.button.get() {
-      let container = gtk::Box::builder()
-        .orientation(gtk::Orientation::Horizontal)
-        .spacing(6)
-        .build();
-
-      let icon = gtk::Image::from_icon_name(icon_name);
-      let label = gtk::Label::new(Some(text));
-
-      container.append(&icon);
-      container.append(&label);
-
-      button.set_child(Some(&container));
-    }
-  }
-
-  /// Set the menu items
-  pub fn set_menu_items(&self, items: Vec<MenuItem>) {
-    *self.state.menu_items.borrow_mut() = items;
-    self.rebuild_menu();
-  }
-
-  /// Set an item's toggled state
-  pub fn set_item_toggled_state(&self, item_id: &str, toggled: bool) {
-    let mut items = self.state.menu_items.borrow_mut();
-    if let Some(item) = items.iter_mut().find(|i| i.id == item_id) {
-      if item.is_toggleable {
-        item.is_toggled = toggled;
-      }
-    }
-    drop(items);
-    self.rebuild_menu();
-  }
 
   fn setup_button_behavior(&self) {
     if let (Some(button), Some(popover)) = (self.button.get(), self.popover.get()) {
@@ -190,7 +196,7 @@ impl DropdownMenuButtonPrivate {
   pub fn rebuild_menu(&self) {
     if let Some(popover) = self.popover.get() {
       if let Some(_child) = popover.child() {
-        popover.set_child(gtk::Widget::NONE);
+        popover.set_child(Widget::NONE);
       }
 
       let items = self.state.menu_items.borrow().clone();
@@ -210,28 +216,28 @@ impl DropdownMenuButtonPrivate {
     }
   }
 
-  fn create_menu_container_with_state(&self, items: &[MenuItem], has_stack: bool, breadcrumbs: &[String]) -> gtk::Widget {
-    let menu_box = super::styling::DropdownStyling::create_styled_menu_container();
+  fn create_menu_container_with_state(&self, items: &[MenuItem], has_stack: bool, breadcrumbs: &[String]) -> Widget {
+    let menu_box = DropdownStyling::create_styled_menu_container();
     let mut containers = Vec::new();
 
     if has_stack {
       let back_item = self.create_back_button_with_breadcrumbs(breadcrumbs);
-      if let Some(container) = back_item.downcast_ref::<gtk::Box>() {
+      if let Some(container) = back_item.downcast_ref::<Box>() {
         containers.push(container.clone());
       }
       menu_box.append(&back_item);
 
-      let separator = super::styling::DropdownStyling::create_styled_separator();
+      let separator = DropdownStyling::create_styled_separator();
       menu_box.append(&separator);
     }
 
     for item in items {
       if item.is_separator {
-        let separator = super::styling::DropdownStyling::create_styled_separator();
+        let separator = DropdownStyling::create_styled_separator();
         menu_box.append(&separator);
       } else {
         let menu_item = self.create_menu_item(item);
-        if let Some(container) = menu_item.downcast_ref::<gtk::Box>() {
+        if let Some(container) = menu_item.downcast_ref::<Box>() {
           containers.push(container.clone());
         }
         menu_box.append(&menu_item);
@@ -242,23 +248,23 @@ impl DropdownMenuButtonPrivate {
     menu_box.upcast()
   }
 
-  fn create_menu_item(&self, item: &MenuItem) -> gtk::Widget {
-    let item_container = super::styling::DropdownStyling::create_styled_menu_item();
+  fn create_menu_item(&self, item: &MenuItem) -> Widget {
+    let item_container = DropdownStyling::create_styled_menu_item();
 
-    super::styling::DropdownStyling::set_item_toggled(&item_container, item.is_toggled);
+    DropdownStyling::set_item_toggled(&item_container, item.is_toggled);
 
     self.setup_item_interactions(&item_container, item);
 
-    let content_grid = gtk::Grid::builder().column_spacing(12).build();
+    let content_grid = Grid::builder().column_spacing(12).build();
     let mut col = 0;
 
     let icon_widget = Self::create_menu_icon(item);
     content_grid.attach(&icon_widget, col, 0, 1, 1);
     col += 1;
 
-    let label = gtk::Label::builder()
+    let label = Label::builder()
       .label(&item.label)
-      .halign(gtk::Align::Start)
+      .halign(Align::Start)
       .hexpand(true)
       .build();
     content_grid.attach(&label, col, 0, 1, 1);
@@ -271,10 +277,10 @@ impl DropdownMenuButtonPrivate {
     item_container.upcast()
   }
 
-  fn create_back_button_with_breadcrumbs(&self, breadcrumbs: &[String]) -> gtk::Widget {
-    let item_container = super::styling::DropdownStyling::create_styled_menu_item();
+  fn create_back_button_with_breadcrumbs(&self, breadcrumbs: &[String]) -> Widget {
+    let item_container = DropdownStyling::create_styled_menu_item();
 
-    let content_grid = gtk::Grid::builder().column_spacing(12).build();
+    let content_grid = Grid::builder().column_spacing(12).build();
     let mut col = 0;
 
     let back_icon = Self::create_back_icon();
@@ -282,15 +288,15 @@ impl DropdownMenuButtonPrivate {
     col += 1;
 
     let back_label = Self::get_back_button_label(breadcrumbs);
-    let label = gtk::Label::builder()
+    let label = Label::builder()
       .label(&back_label)
-      .halign(gtk::Align::Start)
+      .halign(Align::Start)
       .hexpand(true)
       .build();
     content_grid.attach(&label, col, 0, 1, 1);
     col += 1;
 
-    let placeholder = gtk::Box::builder().width_request(16).build();
+    let placeholder = Box::builder().width_request(16).build();
     content_grid.attach(&placeholder, col, 0, 1, 1);
 
     item_container.append(&content_grid);
@@ -300,8 +306,8 @@ impl DropdownMenuButtonPrivate {
     item_container.upcast()
   }
 
-  fn setup_item_interactions(&self, item_container: &gtk::Box, item: &MenuItem) {
-    let event_controller = gtk::GestureClick::new();
+  fn setup_item_interactions(&self, item_container: &Box, item: &MenuItem) {
+    let event_controller = GestureClick::new();
     item_container.add_controller(event_controller.clone());
 
     if let Some(submenu_items) = item.submenu.clone() {
@@ -355,8 +361,8 @@ impl DropdownMenuButtonPrivate {
     }
   }
 
-  fn setup_back_button_interaction(&self, item_container: &gtk::Box) {
-    let event_controller = gtk::GestureClick::new();
+  fn setup_back_button_interaction(&self, item_container: &Box) {
+    let event_controller = GestureClick::new();
     item_container.add_controller(event_controller.clone());
 
     let obj_weak = self.obj().downgrade();
@@ -386,7 +392,7 @@ impl DropdownMenuButtonPrivate {
   }
 
   // Utility methods (moved from utils.rs)
-  fn update_popover_alignment(popover: &gtk::Popover, button: &gtk::Button) {
+  fn update_popover_alignment(popover: &Popover, button: &Button) {
     if let Some(surface) = button.native().and_then(|n| n.surface()) {
       let display = surface.display();
       let monitor = display
@@ -409,24 +415,24 @@ impl DropdownMenuButtonPrivate {
       let space_right = monitor_geometry.width() - (button_x as i32 + button_width);
 
       if space_right >= menu_width {
-        popover.set_halign(gtk::Align::Start);
+        popover.set_halign(Align::Start);
       } else {
-        popover.set_halign(gtk::Align::End);
+        popover.set_halign(Align::End);
       }
     }
   }
 
-  fn create_menu_icon(item: &MenuItem) -> gtk::Widget {
+  fn create_menu_icon(item: &MenuItem) -> Widget {
     if item.is_toggled {
-      let checkmark = gtk::Image::from_icon_name("object-select-symbolic");
+      let checkmark = Image::from_icon_name("object-select-symbolic");
       checkmark.set_pixel_size(16);
       checkmark.upcast()
     } else if let Some(icon_name) = &item.icon {
-      let icon = gtk::Image::from_icon_name(icon_name);
+      let icon = Image::from_icon_name(icon_name);
       icon.set_pixel_size(16);
       icon.upcast()
     } else {
-      let placeholder = gtk::Box::builder()
+      let placeholder = Box::builder()
         .width_request(16)
         .height_request(16)
         .build();
@@ -434,20 +440,20 @@ impl DropdownMenuButtonPrivate {
     }
   }
 
-  fn create_submenu_indicator(has_submenu: bool) -> gtk::Widget {
+  fn create_submenu_indicator(has_submenu: bool) -> Widget {
     if has_submenu {
-      let arrow = gtk::Image::from_icon_name("go-next-symbolic");
+      let arrow = Image::from_icon_name("go-next-symbolic");
       arrow.set_pixel_size(12);
-      arrow.set_halign(gtk::Align::End);
+      arrow.set_halign(Align::End);
       arrow.upcast()
     } else {
-      let placeholder = gtk::Box::builder().width_request(16).build();
+      let placeholder = Box::builder().width_request(16).build();
       placeholder.upcast()
     }
   }
 
-  fn create_back_icon() -> gtk::Image {
-    let icon = gtk::Image::from_icon_name("go-previous-symbolic");
+  fn create_back_icon() -> Image {
+    let icon = Image::from_icon_name("go-previous-symbolic");
     icon.set_pixel_size(16);
     icon
   }
@@ -456,7 +462,7 @@ impl DropdownMenuButtonPrivate {
     breadcrumbs.last().cloned().unwrap_or_else(|| "Back".to_string())
   }
 
-  fn register_popover_instance(popover: &gtk::Popover) {
+  fn register_popover_instance(popover: &Popover) {
     DROPDOWN_INSTANCES.with(|instances| {
       instances.borrow_mut().push(popover.clone());
     });
@@ -470,7 +476,7 @@ impl DropdownMenuButtonPrivate {
     });
   }
 
-  fn close_all_other_dropdowns(current_popover: &gtk::Popover) {
+  fn close_all_other_dropdowns(current_popover: &Popover) {
     DROPDOWN_INSTANCES.with(|instances| {
       let mut instances = instances.borrow_mut();
       instances.retain(|popover| {
@@ -488,7 +494,7 @@ impl DropdownMenuButtonPrivate {
 }
 
 impl WidgetImpl for DropdownMenuButtonPrivate {
-  fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
+  fn measure(&self, orientation: Orientation, for_size: i32) -> (i32, i32, i32, i32) {
     if let Some(button) = self.button.get() {
       button.measure(orientation, for_size)
     } else {

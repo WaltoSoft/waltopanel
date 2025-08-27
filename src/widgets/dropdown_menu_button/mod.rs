@@ -40,7 +40,7 @@ impl DropdownMenuButton {
   }
 
   pub fn set_item_toggled(&self, item_id: &str, toggled: bool) {
-    self.imp().set_item_toggled_state(item_id, toggled);
+    self.imp().set_item_toggled(item_id, toggled);
   }
 }
 
