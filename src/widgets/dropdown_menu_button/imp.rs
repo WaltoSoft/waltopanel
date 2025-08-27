@@ -1,10 +1,14 @@
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 
 use super::state::MenuState;
 use crate::models::MenuItem;
+
+thread_local! {
+  static DROPDOWN_INSTANCES: RefCell<Vec<gtk::Popover>> = RefCell::new(Vec::new());
+}
 
 pub struct DropdownMenuButtonPrivate {
   button: OnceCell<gtk::Button>,
@@ -41,7 +45,7 @@ impl ObjectImpl for DropdownMenuButtonPrivate {
     
     let button = gtk::Button::new();
     button.set_parent(&*obj);
-    self.button.set(button.clone()).unwrap();
+    self.button.set(button.clone()).expect("Button should only be set once during construction");
     
     let popover = gtk::Popover::builder()
       .autohide(false)
@@ -52,9 +56,9 @@ impl ObjectImpl for DropdownMenuButtonPrivate {
       .build();
     
     popover.set_parent(&button);
-    self.popover.set(popover.clone()).unwrap();
+    self.popover.set(popover.clone()).expect("Popover should only be set once during construction");
     
-    super::utils::DropdownUtils::register_popover_instance(&popover);
+    Self::register_popover_instance(&popover);
     
     self.setup_button_behavior();
     self.setup_popover_handlers();
@@ -152,8 +156,8 @@ impl DropdownMenuButtonPrivate {
         if popover_click.is_visible() {
           popover_click.popdown();
         } else {
-          super::utils::DropdownUtils::close_all_other_dropdowns(&popover_click);
-          super::utils::DropdownUtils::update_popover_alignment(&popover_click, &button_click);
+          Self::close_all_other_dropdowns(&popover_click);
+          Self::update_popover_alignment(&popover_click, &button_click);
           popover_click.popup();
         }
       });
@@ -248,7 +252,7 @@ impl DropdownMenuButtonPrivate {
     let content_grid = gtk::Grid::builder().column_spacing(12).build();
     let mut col = 0;
 
-    let icon_widget = super::utils::DropdownUtils::create_menu_icon(item);
+    let icon_widget = Self::create_menu_icon(item);
     content_grid.attach(&icon_widget, col, 0, 1, 1);
     col += 1;
 
@@ -260,7 +264,7 @@ impl DropdownMenuButtonPrivate {
     content_grid.attach(&label, col, 0, 1, 1);
     col += 1;
 
-    let arrow_widget = super::utils::DropdownUtils::create_submenu_indicator(item.submenu.is_some());
+    let arrow_widget = Self::create_submenu_indicator(item.submenu.is_some());
     content_grid.attach(&arrow_widget, col, 0, 1, 1);
 
     item_container.append(&content_grid);
@@ -273,11 +277,11 @@ impl DropdownMenuButtonPrivate {
     let content_grid = gtk::Grid::builder().column_spacing(12).build();
     let mut col = 0;
 
-    let back_icon = super::utils::DropdownUtils::create_back_icon();
+    let back_icon = Self::create_back_icon();
     content_grid.attach(&back_icon, col, 0, 1, 1);
     col += 1;
 
-    let back_label = super::utils::DropdownUtils::get_back_button_label(breadcrumbs);
+    let back_label = Self::get_back_button_label(breadcrumbs);
     let label = gtk::Label::builder()
       .label(&back_label)
       .halign(gtk::Align::Start)
@@ -300,8 +304,7 @@ impl DropdownMenuButtonPrivate {
     let event_controller = gtk::GestureClick::new();
     item_container.add_controller(event_controller.clone());
 
-    if item.submenu.is_some() {
-      let submenu_items = item.submenu.clone().unwrap();
+    if let Some(submenu_items) = item.submenu.clone() {
       let item_label = item.label.clone();
       let obj_weak = self.obj().downgrade();
 
@@ -379,6 +382,107 @@ impl DropdownMenuButtonPrivate {
           imp.rebuild_menu();
         }
       }
+    });
+  }
+
+  // Utility methods (moved from utils.rs)
+  fn update_popover_alignment(popover: &gtk::Popover, button: &gtk::Button) {
+    if let Some(surface) = button.native().and_then(|n| n.surface()) {
+      let display = surface.display();
+      let monitor = display
+        .monitor_at_surface(&surface)
+        .or_else(|| {
+          display.monitors().item(0)?.downcast().ok()
+        });
+      let Some(monitor) = monitor else {
+        return;
+      };
+      let monitor_geometry = monitor.geometry();
+
+      let (button_x, _) = button
+        .root()
+        .and_then(|root| button.translate_coordinates(&root, 0.0, 0.0))
+        .unwrap_or((0.0, 0.0));
+
+      let button_width = button.allocated_width();
+      let menu_width = 200;
+      let space_right = monitor_geometry.width() - (button_x as i32 + button_width);
+
+      if space_right >= menu_width {
+        popover.set_halign(gtk::Align::Start);
+      } else {
+        popover.set_halign(gtk::Align::End);
+      }
+    }
+  }
+
+  fn create_menu_icon(item: &MenuItem) -> gtk::Widget {
+    if item.is_toggled {
+      let checkmark = gtk::Image::from_icon_name("object-select-symbolic");
+      checkmark.set_pixel_size(16);
+      checkmark.upcast()
+    } else if let Some(icon_name) = &item.icon {
+      let icon = gtk::Image::from_icon_name(icon_name);
+      icon.set_pixel_size(16);
+      icon.upcast()
+    } else {
+      let placeholder = gtk::Box::builder()
+        .width_request(16)
+        .height_request(16)
+        .build();
+      placeholder.upcast()
+    }
+  }
+
+  fn create_submenu_indicator(has_submenu: bool) -> gtk::Widget {
+    if has_submenu {
+      let arrow = gtk::Image::from_icon_name("go-next-symbolic");
+      arrow.set_pixel_size(12);
+      arrow.set_halign(gtk::Align::End);
+      arrow.upcast()
+    } else {
+      let placeholder = gtk::Box::builder().width_request(16).build();
+      placeholder.upcast()
+    }
+  }
+
+  fn create_back_icon() -> gtk::Image {
+    let icon = gtk::Image::from_icon_name("go-previous-symbolic");
+    icon.set_pixel_size(16);
+    icon
+  }
+
+  fn get_back_button_label(breadcrumbs: &[String]) -> String {
+    breadcrumbs.last().cloned().unwrap_or_else(|| "Back".to_string())
+  }
+
+  fn register_popover_instance(popover: &gtk::Popover) {
+    DROPDOWN_INSTANCES.with(|instances| {
+      instances.borrow_mut().push(popover.clone());
+    });
+
+    let popover_for_cleanup = popover.clone();
+    popover.connect_destroy(move |_| {
+      DROPDOWN_INSTANCES.with(|instances| {
+        let mut instances = instances.borrow_mut();
+        instances.retain(|p| p != &popover_for_cleanup);
+      });
+    });
+  }
+
+  fn close_all_other_dropdowns(current_popover: &gtk::Popover) {
+    DROPDOWN_INSTANCES.with(|instances| {
+      let mut instances = instances.borrow_mut();
+      instances.retain(|popover| {
+        if let Some(_parent) = popover.parent() {
+          if popover != current_popover && popover.is_visible() {
+            popover.popdown();
+          }
+          true
+        } else {
+          false
+        }
+      });
     });
   }
 }

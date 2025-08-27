@@ -2,7 +2,6 @@ mod imp;
 mod navigation;
 mod state;
 mod styling;
-mod utils;
 mod builder;
 
 use gtk::glib;
@@ -54,8 +53,12 @@ impl DropdownMenuButton {
     F: Fn(&Self, &str) + 'static,
   {
     self.connect_local("item-selected", false, move |values| {
-      let dropdown = values[0].get::<DropdownMenuButton>().unwrap();
-      let item_id = values[1].get::<String>().unwrap();
+      let Ok(dropdown) = values[0].get::<DropdownMenuButton>() else {
+        return None;
+      };
+      let Ok(item_id) = values[1].get::<String>() else {
+        return None;
+      };
       callback(&dropdown, &item_id);
       None
     })
@@ -66,9 +69,15 @@ impl DropdownMenuButton {
     F: Fn(&Self, &str, bool) + 'static,
   {
     self.connect_local("item-toggled", false, move |values| {
-      let dropdown = values[0].get::<DropdownMenuButton>().unwrap();
-      let item_id = values[1].get::<String>().unwrap();
-      let toggled_state = values[2].get::<bool>().unwrap();
+      let Ok(dropdown) = values[0].get::<DropdownMenuButton>() else {
+        return None;
+      };
+      let Ok(item_id) = values[1].get::<String>() else {
+        return None;
+      };
+      let Ok(toggled_state) = values[2].get::<bool>() else {
+        return None;
+      };
       callback(&dropdown, &item_id, toggled_state);
       None
     })
