@@ -1,8 +1,4 @@
 mod imp;
-mod navigation;
-mod state;
-mod styling;
-mod builder;
 
 use gtk::glib;
 use gtk::prelude::*;
@@ -15,9 +11,6 @@ glib::wrapper! {
     @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
-//-------------------------------------------------------------------------------------------------
-// Public API
-//-------------------------------------------------------------------------------------------------
 impl DropdownMenuButton {
   pub fn new() -> Self {
     glib::Object::new()
@@ -40,13 +33,10 @@ impl DropdownMenuButton {
   }
 
   pub fn set_item_toggled(&self, item_id: &str, toggled: bool) {
-    self.imp().set_item_toggled(item_id, toggled);
+    self.imp().set_menuitem_toggled(item_id, toggled);
   }
 }
 
-//-------------------------------------------------------------------------------------------------
-// Event Handlers Provided
-//-------------------------------------------------------------------------------------------------
 impl DropdownMenuButton {
   pub fn connect_item_selected<F>(&self, callback: F) -> glib::SignalHandlerId
   where

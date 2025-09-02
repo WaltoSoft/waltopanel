@@ -49,4 +49,8 @@ impl MenuItem {
       submenu: None,
     }
   }
+
+  pub fn has_submenu(&self) -> bool {
+    self.submenu.is_some() && !self.submenu.as_ref().unwrap().is_empty()
+  }
 }

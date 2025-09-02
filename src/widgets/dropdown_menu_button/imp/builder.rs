@@ -1,5 +1,4 @@
-use crate::models::MenuItem;
-use super::DropdownMenuButton;
+use crate::{models::MenuItem, widgets::DropdownMenuButton};
 
 pub struct DropdownMenuButtonBuilder {
   text: Option<String>,
@@ -99,7 +98,6 @@ impl DropdownMenuButtonBuilder {
     self.menu_items.push(separator);
     self
   }
-
 
   pub fn build(self) -> DropdownMenuButton {
     let dropdown = DropdownMenuButton::new();
@@ -208,7 +206,7 @@ where
     self
   }
 
-  pub fn end_submenu(mut self) -> P {
+  pub fn end_submenu(self) -> P {
     let submenu_item = MenuItem {
       id: self.id,
       label: self.label,
