@@ -19,8 +19,16 @@ impl MenuState {
     }
   }
     
-  pub fn reset_navigation(&self) {
-    self.sub_menu_stack.borrow_mut().clear();
+  pub fn reset_to_root_menu(&self) {
+    let mut stack = self.sub_menu_stack.borrow_mut();
+    
+    // If we have items in the stack, restore the original root menu
+    if let Some(root_menu) = stack.first().cloned() {
+      *self.menu_items.borrow_mut() = root_menu;
+    }
+    
+    // Clear the stack and breadcrumbs
+    stack.clear();
     self.sub_menu_breadcrumbs.borrow_mut().clear();
   }
   

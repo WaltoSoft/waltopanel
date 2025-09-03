@@ -23,9 +23,9 @@ impl DropdownMenuButtonPrivate {
 
     self.dropdown_menu_button.set(button.clone()).expect("Button should only be set once during construction");
     self.popover.set(popover.clone()).expect("Popover should only be set once during construction");
-    self.setup_dropdown_menu_button_handlers();
+    self.attach_dropdown_menu_button_handlers();
 
-    Self::register_instance(&button, &popover);
+    Self::register_instance(&*obj);
   }
 
   pub fn finalize(&self) {
@@ -54,7 +54,7 @@ impl DropdownMenuButtonPrivate {
       false
     );
 
-    self.setup_back_button_handler(&menu_item_container);
+    self.attach_submenu_back_button_handler(&menu_item_container);
 
     menu_item_container.append(&content_grid);
     menu_item_container.upcast()
@@ -120,14 +120,20 @@ impl DropdownMenuButtonPrivate {
 
     Self::set_item_toggled(&menu_item_container, menu_item.is_toggled);
 
+    let icon_to_show = if menu_item.is_toggleable && menu_item.is_toggled {
+      Some("object-select-symbolic")
+    } else {
+      menu_item.icon.as_deref()
+    };
+
     let content_grid = Self::create_menu_item_grid(
-      menu_item.icon.as_deref(),
+      icon_to_show,
       16,
       &menu_item.label,
       menu_item.submenu.is_some()
     );
 
-    self.setup_menu_item_handlers(&menu_item_container, menu_item);
+    self.attach_menu_item_handlers(&menu_item_container, menu_item);
 
     menu_item_container.append(&content_grid);
     menu_item_container.upcast()

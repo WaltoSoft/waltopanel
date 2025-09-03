@@ -29,78 +29,59 @@ impl DropdownMenuButtonPrivate {
     }
   }
 
-  pub fn handle_popover_show(state: &MenuState) {
-    state.sub_menu_stack.borrow_mut().clear();
-    state.sub_menu_breadcrumbs.borrow_mut().clear();
+  pub fn handle_popover_show(&self) {
+    self.state.reset_to_root_menu();
+    self.rebuild_menu();
   }
 
-  pub fn handle_menu_item_click(menu_item_id: &str, is_toggable: bool, popover: &OnceCell<Popover>, obj_weak: &WeakRef<DropdownMenuButton>) {
-    if let Some(obj) = obj_weak.upgrade() {
-      if let Some(popover) = popover.get() {
-        popover.popdown();
-      }
-      
-      let imp = obj.imp();
-      if is_toggable {
-        let new_state = {
-          let mut items = imp.state.menu_items.borrow_mut();
-
-          if let Some(item) = items.iter_mut().find(|i| i.id == menu_item_id) {
-            item.is_toggled = !item.is_toggled;
-            item.is_toggled
-
-          } else {
-            false
-          }
-        };
-        imp.rebuild_menu();
-        imp.emit_item_toggled(&menu_item_id, new_state);
-
-      } else {
-        imp.emit_item_selected(&menu_item_id);
-      }
+  pub fn handle_menu_item_click(&self, menu_item: &MenuItem) {
+    if let Some(popover) = self.popover.get() {
+      popover.popdown();
     }
 
-  }
-
-  pub fn handle_submenu_click(submenu_items: Vec<MenuItem>, menu_label: String, obj_weak: WeakRef<DropdownMenuButton>) {
-    if let Some(obj) = obj_weak.upgrade() {
-      let imp = obj.imp();
-      
-      let current_menu = imp.state.menu_items.borrow().clone();
-      imp.state.sub_menu_stack.borrow_mut().push(current_menu);
-      imp.state.sub_menu_breadcrumbs.borrow_mut().push(menu_label.clone());
-      
-      *imp.state.menu_items.borrow_mut() = submenu_items.clone();
-      
-      imp.rebuild_menu();
+    if menu_item.is_toggleable {
+      self.emit_item_toggled(&menu_item.id, ! menu_item.is_toggled);
+    } else {
+      self.emit_item_selected(&menu_item.id);
     }
   }
 
-  pub fn handle_back_button_click(obj_weak: WeakRef<DropdownMenuButton>) {
-    if let Some(obj) = obj_weak.upgrade() {
-      let imp = obj.imp();
-      
-      let should_rebuild = {
-        let mut stack = imp.state.sub_menu_stack.borrow_mut();
-        if let Some(previous_menu) = stack.pop() {
-          drop(stack); 
-          
-          imp.state.sub_menu_breadcrumbs.borrow_mut().pop();
-          *imp.state.menu_items.borrow_mut() = previous_menu;
-          true
-        } else {
-          false
-        }
-      };
-      
-      if should_rebuild {
-        imp.rebuild_menu();
-      }
+  pub fn handle_submenu_click(&self, menu_item: &MenuItem) {
+    if let Some(submenu_items) = menu_item.submenu.clone() {
+      let sub_menu_label = menu_item.label.clone();
+      let current_menu = self.state.menu_items.borrow().clone();
+
+      self.state.sub_menu_stack.borrow_mut().push(current_menu);
+      self.state.sub_menu_breadcrumbs.borrow_mut().push(sub_menu_label);    
+      *self.state.menu_items.borrow_mut() = submenu_items;
+
+      self.rebuild_menu();
     }
   }
 
-  pub fn setup_dropdown_menu_button_handlers(&self){
+
+  pub fn handle_submenu_back_button_click(&self) {
+    let mut stack = self.state.sub_menu_stack.borrow_mut();
+
+    let should_rebuild = {
+      if let Some(previous_menu) = stack.pop() {
+        drop(stack);
+
+        self.state.sub_menu_breadcrumbs.borrow_mut().pop();
+        *self.state.menu_items.borrow_mut() = previous_menu;
+        true
+      }
+      else {
+        false
+      }
+    };
+
+    if should_rebuild {
+      self.rebuild_menu();
+    }
+  }
+
+  pub fn attach_dropdown_menu_button_handlers(&self){
     let obj_weak = self.obj().downgrade();
 
     if let Some(button) = self.dropdown_menu_button.get() {
@@ -111,46 +92,47 @@ impl DropdownMenuButtonPrivate {
       });
     }
 
+    let obj_weak_popover = self.obj().downgrade();
     if let Some(popover) = self.popover.get() {
-      let state = self.state.clone();
       popover.connect_show(move |_| {
-        Self::handle_popover_show(&state);
+        if let Some(obj) = obj_weak_popover.upgrade() {
+          obj.imp().handle_popover_show();
+        }
       });
     }
   }
 
-  pub fn setup_menu_item_handlers(&self, menu_item_container: &gtk::Box, menu_item: &MenuItem) {
+  pub fn attach_menu_item_handlers(&self, menu_item_container: &gtk::Box, menu_item: &MenuItem) {
+    let obj_weak = self.obj().downgrade();
+    let menu_item_clone = menu_item.clone();
     let event_controller = GestureClick::new();
+
     menu_item_container.add_controller(event_controller.clone());
 
-    if let Some(submenu_items) = menu_item.submenu.clone() {
-      let item_label = menu_item.label.clone();
-      let obj_weak = self.obj().downgrade();
-
-      event_controller.connect_released(move |_, _, _, _| {
-        Self::handle_submenu_click(submenu_items.clone(), item_label.clone(), obj_weak.clone());
-      });
-
-    } else {
-      let menu_item_id = menu_item.id.clone();
-      let is_toggable = menu_item.is_toggleable;
-      let popover = self.popover.clone();
-      let obj_weak = self.obj().downgrade();
-
-      event_controller.connect_released(move |_, _, _, _| {
-        Self::handle_menu_item_click(&menu_item_id, is_toggable, &popover, &obj_weak);
-      });
+    if let Some(obj) = obj_weak.upgrade() {
+      if menu_item.has_submenu() {
+        event_controller.connect_released(move |_, _, _, _| {
+          obj.imp().handle_submenu_click(&menu_item_clone);
+        });
+      }
+      else {
+        event_controller.connect_released(move |_, _, _, _| {
+          obj.imp().handle_menu_item_click(&menu_item_clone);
+        });
+      }
     }
   }
 
-  pub fn setup_back_button_handler(&self, menu_item_container: &Box) {
+  pub fn attach_submenu_back_button_handler(&self, menu_item_container: &Box) {
     let obj_weak = self.obj().downgrade();
     let event_controller = GestureClick::new();
 
     menu_item_container.add_controller(event_controller.clone());
 
     event_controller.connect_released(move |_, _, _, _| {
-      Self::handle_back_button_click(obj_weak.clone());
+      if let Some(obj) = obj_weak.upgrade() {
+        obj.imp().handle_submenu_back_button_click();
+      }
     });
   }  
 }
