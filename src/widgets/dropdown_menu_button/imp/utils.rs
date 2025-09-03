@@ -14,15 +14,28 @@ impl DropdownMenuButtonPrivate {
   /// - `has_sub_menu`: Whether the menu item has a sub-menu.
   /// # Returns
   /// A GTK4 `Grid` containing the menu item.
-  pub fn create_menu_item_grid(icon_name: Option<&str>, icon_size: i32, label: &str, has_sub_menu: bool) -> Grid {
+  pub fn create_menu_item_grid(icon_name: Option<&str>, icon_size: i32, label: &str, toggled: bool, has_sub_menu: bool, has_toggable_items: bool, has_items_with_icons: bool) -> Grid {
     let mut col = 0;
-    let mut sub_menu_icon: Option<&str> = None;
-
     let content_grid = Grid::builder().column_spacing(12).build();
     let icon_widget = Self::create_icon_widget(icon_name, icon_size);
 
-    content_grid.attach(&icon_widget, col, 0, 1, 1);
-    col += 1;
+    let toggled_icon = if has_toggable_items && toggled {
+      Some("object-select-symbolic")
+    } else {
+      None
+    };
+
+    if has_toggable_items {
+      let toggled_icon_widget = Self::create_icon_widget(toggled_icon, icon_size);  
+
+      content_grid.attach(&toggled_icon_widget, col, 0, 1, 1);
+      col += 1;
+    }
+
+    if has_items_with_icons {
+      content_grid.attach(&icon_widget, col, 0, 1, 1);
+      col += 1;
+    }
 
     let label = Label::builder()
       .label(label)
@@ -35,11 +48,26 @@ impl DropdownMenuButtonPrivate {
 
 
     if has_sub_menu {
-      sub_menu_icon = Some("go-next-symbolic");
+      let sub_menu_icon = Some("go-next-symbolic");
+      let arrow_icon_widget = Self::create_icon_widget(sub_menu_icon,icon_size);
+      content_grid.attach(&arrow_icon_widget, col, 0, 1,1);
     }
 
-    let arrow_icon_widget = Self::create_icon_widget(sub_menu_icon,icon_size);
-    content_grid.attach(&arrow_icon_widget, col, 0, 1,1);
+    content_grid
+  }
+
+  pub fn create_back_button_grid(label: &str, icon_size: i32) -> Grid {
+    let content_grid = Grid::builder().column_spacing(12).build();
+
+    let back_icon_widget = Self::create_icon_widget(Some("go-previous-symbolic"), icon_size);
+    content_grid.attach(&back_icon_widget, 0, 0, 1, 1);
+
+    let label = Label::builder()
+      .label(label)
+      .halign(Align::Start)
+      .hexpand(true)
+      .build();
+    content_grid.attach(&label, 1, 0, 1, 1);
 
     content_grid
   }

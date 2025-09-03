@@ -3,7 +3,6 @@ use adw::subclass::prelude::ObjectSubclassIsExt;
 use gtk::{prelude::{PopoverExt, WidgetExt}, Popover};
 
 use crate::widgets::DropdownMenuButton;
-
 use super::DropdownMenuButtonPrivate;
 
 thread_local! {

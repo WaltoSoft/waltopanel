@@ -1,22 +1,14 @@
 use adw::subclass::prelude::{ObjectSubclassExt, ObjectSubclassIsExt};
-use gtk::{glib::WeakRef, prelude::{ButtonExt, PopoverExt, WidgetExt}};
-use gtk::{Box, Button, GestureClick, Popover};
-use std::cell::OnceCell;
+use gtk::{prelude::{ButtonExt, PopoverExt, WidgetExt}};
+use gtk::{Box, GestureClick};
 
 use crate::models::MenuItem;
-use super::{DropdownMenuButtonPrivate, state::MenuState};
-use super::super::DropdownMenuButton;
+use super::DropdownMenuButtonPrivate;
 
 impl DropdownMenuButtonPrivate {
   /// Handle the click event for the dropdown menu button.
   /// If the popover is visible, it will be hidden. Otherwise, the popover 
   /// will be shown and all other dropdowns will be closed.
-  ///
-  /// This ensures that only one dropdown is open at a time.
-  /// 
-  /// Parameters:
-  /// - `popover`: The popover associated with the dropdown menu button.
-  /// - `button`: The button that was clicked.
   pub fn handle_dropdown_menu_button_click(&self) {
     if let (Some(button), Some(popover)) = (self.dropdown_menu_button.get(), self.popover.get()) {
       if popover.is_visible() {
@@ -29,11 +21,24 @@ impl DropdownMenuButtonPrivate {
     }
   }
 
+  /// Handle the show event for the widget's popover.
+  /// The state is reset to the root menu, in case it was previously
+  /// in a submenu.  The menu is then rebuild to reflect the current state
   pub fn handle_popover_show(&self) {
     self.state.reset_to_root_menu();
     self.rebuild_menu();
   }
 
+  /// Handle the click event for a menu item.  This handler is for a leaf
+  /// menu item and doesn't handle when a subemnu is clicked.
+  /// If the menu item clicked is toggable, the is-toogled signal is emmitted
+  /// otherwide the item-selected signal is emmitted
+  /// Note: we don't update the toggled state if the menu item is toggled
+  /// The caller would need to update the MenuItem model if they want to change 
+  /// the status.  Also, the popover is hidden when a menu item is clicked.
+  /// 
+  /// Parameters:
+  /// - `menu_item`: The model for the menu item that was clicked.
   pub fn handle_menu_item_click(&self, menu_item: &MenuItem) {
     if let Some(popover) = self.popover.get() {
       popover.popdown();
@@ -46,6 +51,8 @@ impl DropdownMenuButtonPrivate {
     }
   }
 
+  /// Handle the click event for a submenu item.
+  /// The current menu items 
   pub fn handle_submenu_click(&self, menu_item: &MenuItem) {
     if let Some(submenu_items) = menu_item.submenu.clone() {
       let sub_menu_label = menu_item.label.clone();
