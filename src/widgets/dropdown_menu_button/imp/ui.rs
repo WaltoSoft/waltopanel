@@ -14,7 +14,7 @@ impl DropdownMenuButtonPrivate {
     button.set_parent(&*obj);
 
     let popover = Popover::builder()
-      .autohide(false)
+      .autohide(true)
       .has_arrow(false)
       .position(PositionType::Bottom)
       .can_focus(true)
