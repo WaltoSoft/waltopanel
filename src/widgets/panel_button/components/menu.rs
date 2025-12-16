@@ -28,8 +28,8 @@ impl Menu {
       .autohide(true)
       .has_arrow(false)
       .position(PositionType::Bottom)
-      .can_focus(true)
-      .focusable(true)
+      .can_focus(false)
+      .focusable(false)
       .build();
 
     Self {
@@ -49,7 +49,6 @@ impl Menu {
     if self.popover.is_visible() {
       self.popover.popdown();
     } else {
-
       self.update_popover_alignment();
       //Self::close_other_button_menus(popover);
       self.reset_menu();
@@ -151,11 +150,7 @@ impl Menu {
 
       let (button_x, _) = button_menu_box
         .root()
-        .and_then(|root| {
-          // Use compute_point instead of translate_coordinates to avoid the assertion
-          button_menu_box.compute_point(&root, &gtk::graphene::Point::new(0.0, 0.0))
-            .map(|point| (point.x() as f64, point.y() as f64))
-        })
+        .and_then(|root| button_menu_box.translate_coordinates(&root, 0.0, 0.0))
         .unwrap_or((0.0, 0.0));
 
       let button_width = button_menu_box.allocated_width();
