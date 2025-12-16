@@ -25,7 +25,7 @@ pub struct Menu {
 impl Menu {
   pub fn new() -> Self {
     let popover = Popover::builder()
-      .autohide(true)
+      .autohide(false)
       .has_arrow(false)
       .position(PositionType::Bottom)
       .can_focus(false)
@@ -127,11 +127,6 @@ impl Menu {
     let Some(button_menu_box) = popover.parent() else {
       return;
     };
-
-    // Ensure the button is realized and has a root before proceeding
-    if !button_menu_box.is_realized() || button_menu_box.root().is_none() {
-      return;
-    }
 
     if let Some(surface) = button_menu_box.native().and_then(|n| n.surface()) {
       let display = surface.display();
