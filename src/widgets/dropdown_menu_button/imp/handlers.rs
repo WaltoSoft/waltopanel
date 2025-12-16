@@ -90,7 +90,6 @@ impl DropdownMenuButtonPrivate {
 
   pub fn attach_dropdown_menu_button_handlers(&self){
     let obj_weak = self.obj().downgrade();
-
     if let Some(button) = self.dropdown_menu_button.get() {
       button.connect_clicked(move |_| {
         if let Some(obj) = obj_weak.upgrade() {
@@ -112,7 +111,7 @@ impl DropdownMenuButtonPrivate {
   pub fn attach_menu_item_handlers(&self, menu_item_container: &gtk::Box, menu_item: &MenuItem) {
     let obj_weak = self.obj().downgrade();
     let menu_item_clone = menu_item.clone();
-    let event_controller = GestureClick::new();
+    let event_controller: GestureClick = GestureClick::new();
 
     menu_item_container.add_controller(event_controller.clone());
 

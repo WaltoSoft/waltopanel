@@ -96,7 +96,7 @@ impl DropdownMenuButtonPrivate {
       }
     }
 
-    *self.state.menu_boxes.borrow_mut() = containers;
+   // *self.state.menu_boxes.borrow_mut() = containers;
     menu_box.upcast()
   }
 

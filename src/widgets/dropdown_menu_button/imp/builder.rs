@@ -11,6 +11,7 @@ pub struct SubmenuBuilder<P> {
   id: String,
   label: String,
   icon: Option<String>,
+  icon_name: Option<String>,
   submenu_items: Vec<MenuItem>,
 }
 
@@ -59,20 +60,13 @@ impl DropdownMenuButtonBuilder {
   }
 
   pub fn add_menu_with_submenu<S1: Into<String>, S2: Into<String>>(
-    mut self, 
-    id: S1, 
-    label: S2, 
+    mut self,
+    id: S1,
+    label: S2,
     submenu_items: Vec<MenuItem>
   ) -> Self {
-    let item = MenuItem {
-      id: id.into(),
-      label: label.into(),
-      submenu: Some(submenu_items),
-      icon: None,
-      is_separator: false,
-      is_toggled: false,
-      is_toggleable: false,
-    };
+    let item = MenuItem::new(&id.into(), &label.into())
+      .with_submenu(submenu_items);
     self.menu_items.push(item);
     self
   }
@@ -86,15 +80,7 @@ impl DropdownMenuButtonBuilder {
   }
 
   pub fn add_separator(mut self) -> Self {
-    let separator = MenuItem {
-      id: String::new(),
-      label: String::new(),
-      submenu: None,
-      icon: None,
-      is_separator: true,
-      is_toggled: false,
-      is_toggleable: false,
-    };
+    let separator = MenuItem::separator();
     self.menu_items.push(separator);
     self
   }
@@ -133,6 +119,7 @@ where
       id,
       label,
       icon: None,
+      icon_name: None,
       submenu_items: Vec::new(),
     }
   }
@@ -148,38 +135,23 @@ where
   }
 
   pub fn add_menu_item<S1: Into<String>, S2: Into<String>>(
-    mut self, 
-    id: S1, 
+    mut self,
+    id: S1,
     label: S2
   ) -> Self {
-    let item = MenuItem {
-      id: id.into(),
-      label: label.into(),
-      submenu: None,
-      icon: None,
-      is_separator: false,
-      is_toggled: false,
-      is_toggleable: false,
-    };
+    let item = MenuItem::new(&id.into(), &label.into());
     self.submenu_items.push(item);
     self
   }
 
   pub fn add_menu_item_with_icon<S1: Into<String>, S2: Into<String>, S3: Into<String>>(
-    mut self, 
-    id: S1, 
+    mut self,
+    id: S1,
     label: S2,
     icon_name: S3
   ) -> Self {
-    let item = MenuItem {
-      id: id.into(),
-      label: label.into(),
-      submenu: None,
-      icon: Some(icon_name.into()),
-      is_separator: false,
-      is_toggled: false,
-      is_toggleable: false,
-    };
+    let item = MenuItem::new(&id.into(), &label.into())
+      .with_icon_name(&icon_name.into());
     self.submenu_items.push(item);
     self
   }
@@ -193,30 +165,22 @@ where
   }
 
   pub fn add_separator(mut self) -> Self {
-    let separator = MenuItem {
-      id: String::new(),
-      label: String::new(),
-      submenu: None,
-      icon: None,
-      is_separator: true,
-      is_toggled: false,
-      is_toggleable: false,
-    };
+    let separator = MenuItem::separator();
     self.submenu_items.push(separator);
     self
   }
 
   pub fn end_submenu(self) -> P {
-    let submenu_item = MenuItem {
-      id: self.id,
-      label: self.label,
-      submenu: Some(self.submenu_items),
-      icon: self.icon,
-      is_separator: false,
-      is_toggled: false,
-      is_toggleable: false,
-    };
-    
+    let mut submenu_item = MenuItem::new(&self.id, &self.label)
+      .with_submenu(self.submenu_items);
+
+    if let Some(icon) = self.icon {
+      submenu_item = submenu_item.with_icon(&icon);
+    }
+    if let Some(icon_name) = self.icon_name {
+      submenu_item = submenu_item.with_icon_name(&icon_name);
+    }
+
     self.parent.add_menu_item_internal(submenu_item)
   }
 }

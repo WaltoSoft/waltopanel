@@ -22,10 +22,17 @@ impl MenuItem {
     }
   }
 
+
   pub fn with_icon(mut self, icon: &str) -> Self {
     self.icon = Some(icon.to_string());
     self
   }
+
+  pub fn with_icon_name(mut self, icon: &str) -> Self {
+    self.icon = Some(icon.to_string());
+    self
+  }
+
 
   pub fn toggled(mut self) -> Self {
     self.is_toggled = true;

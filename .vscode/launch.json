@@ -1,0 +1,43 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug curtain_bar",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=curtain_bar",
+                    "--package=curtain_bar"
+                ],
+                "filter": {
+                    "name": "curtain_bar",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "cppdbg",
+            "request": "launch",
+            "name": "Debug curtain_bar (C++ Tools)",
+            "program": "${workspaceFolder}/target/debug/curtain_bar",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "cargo build"
+        }
+    ]
+}
