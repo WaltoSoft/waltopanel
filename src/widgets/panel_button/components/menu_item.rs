@@ -1,23 +1,26 @@
 use gtk::glib::object::Cast;
-use gtk::prelude::BoxExt;
-use gtk::{Box, Grid, Label, Widget}; 
+use gtk::prelude::{BoxExt, WidgetExt};
+use gtk::{Box, GestureClick, Grid, Label, Widget}; 
 use gtk::{Align, Orientation, prelude::GridExt};
 
-use crate::models::MenuItemModel;
+use crate::models::{self, MenuItemModel};
 use crate::helpers::ui_helpers;
 use crate::traits::CompositeWidget;
+use crate::widgets::panel_button::components::menu;
 
 pub struct MenuItem {
   container: Box,
+  model: MenuItemModel,
+  click_gesture: GestureClick
 }
 
 impl MenuItem {
-  pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool) -> Self {
+  pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool, menu_is_submenu: bool) -> Self {
     let mut col = 0;
     let icon_size = 16;
     let column_spacing = 12;
 
-    let menu_item_box = ui_helpers::create_styled_box(Orientation::Horizontal, 0, vec!["dropdown-item".to_string()]);
+    let container = ui_helpers::create_styled_box(Orientation::Horizontal, 0, vec!["dropdown-item".to_string()]);
     let content_grid = Grid::builder().column_spacing(column_spacing).build();
     let icon_widget = ui_helpers::create_icon_widget(model.icon_name(), icon_size);
 
@@ -29,13 +32,18 @@ impl MenuItem {
 
     if menu_has_toggable_items {
       let toggled_icon_widget = ui_helpers::create_icon_widget(toggled_icon, icon_size);  
-
       content_grid.attach(&toggled_icon_widget, col, 0, 1, 1);
       col += 1;
     }
 
     if menu_has_icons {
       content_grid.attach(&icon_widget, col, 0, 1, 1);
+      col += 1;
+    }
+
+    if ! menu_has_icons && ! menu_has_toggable_items && menu_is_submenu {
+      let blank_icon_widget = ui_helpers::create_icon_widget(None, icon_size);
+      content_grid.attach(&blank_icon_widget, col, 0, 1, 1);
       col += 1;
     }
 
@@ -54,12 +62,28 @@ impl MenuItem {
       content_grid.attach(&arrow_icon_widget, col, 0, 1,1);
     } 
 
-    menu_item_box.append(&content_grid);
-
+    container.append(&content_grid);
+    let click_gesture = GestureClick::new();
+    container.add_controller(click_gesture.clone());
+    
     Self {
-      container: menu_item_box,
+      container,
+      model,
+      click_gesture
     }
   }
+
+  pub fn connect_clicked<F>(&self, callback: F)
+  where
+    F: Fn(&MenuItemModel) + 'static,
+  {
+    let model = self.model.clone();
+
+    self.click_gesture.connect_released(move |_, _, _, _| {
+      callback(&model);
+    });    
+
+  }   
 }
 
 impl CompositeWidget for MenuItem {

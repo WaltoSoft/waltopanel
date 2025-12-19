@@ -1,10 +1,12 @@
-use crate::CurtainBar;
 use gtk::gio;
 use gtk::prelude::*;
 use gtk::gdk;
 use gtk4_layer_shell::LayerShell;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use crate::curtain_bar::CurtainBar;
+
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
   adw::init().unwrap();

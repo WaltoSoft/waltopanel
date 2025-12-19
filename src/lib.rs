@@ -1,9 +1,8 @@
 pub mod app;
-pub mod curtain_bar;
-pub mod models;
-pub mod traits;
-pub mod types;
-pub mod widgets;
-pub mod helpers;
+mod curtain_bar;
+mod helpers;
+mod models;
+mod traits;
+mod types;
+mod widgets;
 
-pub use curtain_bar::{CurtainBar, CurtainBarBuilder};

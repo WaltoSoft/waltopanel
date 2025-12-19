@@ -336,6 +336,24 @@ impl CurtainBar {
 
     // System menu
     let system_menu = PanelButton::from_icon_name_and_label("computer-symbolic", &format!("System {}", monitor_index));
+    system_menu.connect_local("menu-item-clicked", false, move |values| {
+      let menu_item = values[1].get::<&MenuItemModel>().expect("type checked upstream");
+
+      if(menu_item.allow_toggle()) {
+        menu_item.set_toggled(!menu_item.toggled());
+      }
+
+      println!(
+        "System menu item clicked on monitor {}: {} ({})",
+        monitor_index,
+        menu_item.text(),
+        menu_item.id()
+      );
+
+      None
+    });
+       
+    
     let system_menu = self.setup_panel_button(system_menu);
 
     let system_items = TypedListStore::new();

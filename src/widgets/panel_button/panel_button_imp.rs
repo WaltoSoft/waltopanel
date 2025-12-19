@@ -1,10 +1,14 @@
 use adw::subclass::prelude::{ObjectImpl, ObjectImplExt, ObjectSubclass, ObjectSubclassExt};
 use gtk::gio::ListStore;
+use gtk::glib::object::ObjectExt;
+use gtk::glib::subclass::Signal;
+use gtk::glib::types::StaticType;
 use gtk::glib::value::ToValue;
 use gtk::subclass::widget::{WidgetClassExt, WidgetImpl};
 use gtk::{BinLayout, Orientation, Widget};
 use gtk::glib::{self, ParamSpec, ParamSpecObject, ParamSpecString, Value, object_subclass};
 use std::cell::{OnceCell, RefCell};
+use std::sync::OnceLock;
 
 use crate::models::MenuItemModel;
 use crate::traits::CompositeWidget;
@@ -73,6 +77,10 @@ impl ObjectImpl for PanelButtonImp {
     }
   }
 
+  fn signals() -> &'static [Signal] {
+    Self::setup_signals()
+  }
+
   fn set_property(&self, _id: usize, value: &Value, pspec: &ParamSpec) {
     match pspec.name() {
       "text" => {
@@ -120,6 +128,11 @@ impl PanelButtonImp {
 
     menu.set_parent(&button);
 
+    let obj_clone = obj.clone();
+    menu.connect_menu_clicked(move |model| {
+      obj_clone.emit_by_name::<()>("menu-item-clicked", &[&model]);
+    });
+
     let menu_clone = menu.clone();
     button.connect_clicked(move || {
       menu_clone.toggle_visibility();
@@ -138,4 +151,16 @@ impl PanelButtonImp {
       menu.unparent();
     }
   }
+
+  fn setup_signals() -> &'static [Signal] {
+    static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+    SIGNALS.get_or_init(|| {
+      vec![
+        Signal::builder("menu-item-clicked")
+          .param_types([MenuItemModel::static_type()])
+          .build(),
+      ]
+    })
+  }
 }
+

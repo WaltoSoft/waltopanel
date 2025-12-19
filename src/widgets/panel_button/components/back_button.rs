@@ -1,23 +1,22 @@
-use gtk::glib::object::Cast;
-use gtk::prelude::BoxExt;
 use gtk::{Box, Grid, Label, Widget};
-use gtk::{Align, prelude::GridExt};
+use gtk::{Align, glib::object::Cast, GestureClick, prelude::{BoxExt, GridExt, WidgetExt}};
 
 use crate::helpers::ui_helpers;
 use crate::traits::CompositeWidget; 
 
 pub struct BackButton {
-  container: Box
+  container: Box,
+  click_gesture: GestureClick,
 }
 
 impl BackButton {
   pub fn new(text: String) -> Self{
     let icon_size = 16;
     let column_spacing = 12;
-    let menu_item_box = ui_helpers::create_styled_box(gtk::Orientation::Horizontal, 0, vec!["dropdown-item".to_string()]);
+    let container = ui_helpers::create_styled_box(gtk::Orientation::Horizontal, 0, vec!["dropdown-item".to_string()]);
     let content_grid = Grid::builder().column_spacing(column_spacing).build();
-
     let back_icon_widget = ui_helpers::create_icon_widget(Some("go-previous-symbolic".to_string()), icon_size);
+
     content_grid.attach(&back_icon_widget, 0, 0, 1, 1);
 
     let label = Label::builder()
@@ -28,11 +27,24 @@ impl BackButton {
     
     content_grid.attach(&label, 1, 0, 1, 1);
 
-    menu_item_box.append(&content_grid);
+    container.append(&content_grid);
+
+    let click_gesture = GestureClick::new();
+    container.add_controller(click_gesture.clone());
     
     Self {
-      container: menu_item_box
+      container,
+      click_gesture,
     }
+  } 
+
+  pub fn connect_clicked<F>(&self, callback: F)
+  where
+    F: Fn() + 'static,
+  {
+    self.click_gesture.connect_released(move |_, _, _, _| {
+      callback();
+    });
   } 
 }
 
