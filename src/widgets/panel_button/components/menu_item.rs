@@ -3,10 +3,9 @@ use gtk::prelude::{BoxExt, WidgetExt};
 use gtk::{Box, GestureClick, Grid, Label, Widget}; 
 use gtk::{Align, Orientation, prelude::GridExt};
 
-use crate::models::{self, MenuItemModel};
+use crate::models::MenuItemModel;
 use crate::helpers::ui_helpers;
 use crate::traits::CompositeWidget;
-use crate::widgets::panel_button::components::menu;
 
 pub struct MenuItem {
   container: Box,

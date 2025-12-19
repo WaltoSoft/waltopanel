@@ -1,5 +1,4 @@
 mod button_menu;
-mod debug;
 mod handlers;
 mod imp;
 mod instances;
