@@ -19,7 +19,7 @@ impl MenuItem {
     let icon_size = 16;
     let column_spacing = 12;
 
-    let container = ui_helpers::create_styled_box(Orientation::Horizontal, 0, vec!["dropdown-item".to_string()]);
+    let container = ui_helpers::create_styled_box(Orientation::Horizontal, 0, vec!["menu-item".to_string()]);
     let content_grid = Grid::builder().column_spacing(column_spacing).build();
     let icon_widget = ui_helpers::create_icon_widget(model.icon_name(), icon_size);
 

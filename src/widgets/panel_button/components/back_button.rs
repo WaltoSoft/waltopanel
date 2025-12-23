@@ -13,7 +13,7 @@ impl BackButton {
   pub fn new(text: String) -> Self{
     let icon_size = 16;
     let column_spacing = 12;
-    let container = ui_helpers::create_styled_box(gtk::Orientation::Horizontal, 0, vec!["dropdown-item".to_string()]);
+    let container = ui_helpers::create_styled_box(gtk::Orientation::Horizontal, 0, vec!["back-button".to_string()]);
     let content_grid = Grid::builder().column_spacing(column_spacing).build();
     let back_icon_widget = ui_helpers::create_icon_widget(Some("go-previous-symbolic".to_string()), icon_size);
 

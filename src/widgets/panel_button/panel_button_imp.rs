@@ -9,6 +9,7 @@ use gtk::{BinLayout, Orientation, Widget};
 use gtk::glib::{self, ParamSpec, ParamSpecObject, ParamSpecString, Value, object_subclass};
 use std::cell::{OnceCell, RefCell};
 use std::sync::OnceLock;
+use uuid::Uuid;
 
 use crate::models::MenuItemModel;
 use crate::traits::CompositeWidget;
@@ -18,7 +19,9 @@ use super::PanelButton;
 use super::components::Button;
 use super::components::Menu;
 
+
 pub struct PanelButtonImp {
+  pub id: Uuid,
   text: RefCell<String>,
   icon_name: RefCell<Option<String>>,
   button: OnceCell::<Button>,
@@ -28,6 +31,7 @@ pub struct PanelButtonImp {
 impl Default for PanelButtonImp {
   fn default() -> Self {
     Self {
+      id: Uuid::new_v4(),
       text: RefCell::new(String::new()),
       icon_name: RefCell::new(None),
       button: OnceCell::new(),
@@ -44,6 +48,7 @@ impl ObjectSubclass for PanelButtonImp {
 
   fn class_init(klass: &mut Self::Class) {
     klass.set_layout_manager_type::<BinLayout>();
+    klass.set_css_name("panelbutton");
   }
 }
 
@@ -73,6 +78,10 @@ impl ObjectImpl for PanelButtonImp {
     match pspec.name() {
       "text" => self.text.borrow().to_value(),
       "icon-name" => self.icon_name.borrow().to_value(),
+      "menu" => {
+        // Return an empty ListStore since menu is write-only
+        ListStore::new::<MenuItemModel>().to_value()
+      }
       _ => unimplemented!(),
     }
   }
@@ -140,15 +149,19 @@ impl PanelButtonImp {
 
     self.button.set(button.clone()).expect("Failed to set button");
     self.menu.set(menu.clone()).expect("Failed to set menu");
+  
+    PanelButton::register_instance(&*obj);
   }
 
   fn finalize(&self) {
     if let Some(button) = self.button.get() {
       button.unparent();
     }
+  }
 
+  pub fn hide_menu(&self) {
     if let Some(menu) = self.menu.get() {
-      menu.unparent();
+      menu.hide_menu();
     }
   }
 

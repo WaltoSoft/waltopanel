@@ -1,4 +1,6 @@
-use gtk::glib::{self, object::ObjectExt, value::ToValue};
+use adw::subclass::prelude::ObjectSubclassIsExt;
+use gtk::{glib::{self, object::ObjectExt, value::ToValue}};
+use std::cell::RefCell;
 
 use crate::{models::MenuItemModel, types::TypedListStore};
 use super::panel_button_imp::PanelButtonImp;
@@ -31,5 +33,13 @@ impl PanelButton {
 
   pub fn set_menu(&self, menu: TypedListStore<MenuItemModel>) {
     self.set_property("menu", menu.as_list_store());
+  }
+
+  pub fn hide_menu(&self) {
+    self.imp().hide_menu();
+  }
+
+  pub fn id(&self) -> uuid::Uuid {
+    self.imp().id
   }
 }

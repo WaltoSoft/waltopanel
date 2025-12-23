@@ -1,54 +1,24 @@
-/* Panel Button Styling */
-button {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    padding: 4px 8px;
+panelbutton > popover > contents {
+  border-radius: 0px;
 }
 
-button.menu-button-active {
-    background-color: rgba(255, 255, 255, 0.1);
-    outline: none;
-    box-shadow: none;
-    border: none;
+panelbutton .menu {
+  padding: 2px 0;
+  min-width: 200px;
+  background-color: var(--popover-bg-color);
+  border: 1px solid var(--borders);
+  border-radius: 0px;
+  box-shadow: none;
 }
 
-/* Suppress GTK's default focus styling (blue border) while keeping functional focus */
-button:focus {
-    outline: none;
-    box-shadow: none;
-    border: none;
-    background: transparent;
+panelbutton .menu-item,
+panelbutton .back-button {
+  padding: 6px 16px;
+  background-color: var(--popover-bg-color);
 }
 
-
-/* Dropdown Menu Styling */
-.dropdown-menu {
-    padding: 2px 0;
-    min-width: 200px;
-    background-color: var(--popover-bg-color);
-    border: 1px solid var(--borders);
-    border-radius: 0px;
-    box-shadow: none;
-}
-
-/* Force popover to have square corners */
-popover.dropdown-menu,
-popover > contents {
-    border-radius: 0px;
-}
-
-.dropdown-item {
-    padding: 6px 16px;
-    background-color: var(--popover-bg-color);
-}
-
-.dropdown-item.focused {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.dropdown-separator {
-    margin: 4px 8px;
-    background-color: var(--borders);
-    min-height: 1px;
+panelbutton .menu-separator {
+  margin: 4px 8px;
+  background-color: var(--borders);
+  min-height: 1px;
 }

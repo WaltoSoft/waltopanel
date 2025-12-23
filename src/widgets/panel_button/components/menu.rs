@@ -1,10 +1,9 @@
-use gtk::gdk::prelude::{DisplayExt, MonitorExt, SurfaceExt};
+use gtk::gdk::{Key, prelude::{DisplayExt, MonitorExt, SurfaceExt}};
 use gtk::gio::prelude::ListModelExt;
-use gtk::glib::object::Cast;
-use gtk::{Align, Box, Orientation, Popover, PositionType, Widget};
+use gtk::glib::{object::Cast, Propagation};
+use gtk::{Align, Box, EventControllerKey, Orientation, Popover, PositionType, Widget};
 use gtk::prelude::{BoxExt, NativeExt, PopoverExt, WidgetExt};
-use std::cell::{OnceCell, RefCell};
-use std::rc::Rc;
+use std::{cell::{OnceCell, RefCell}, rc::Rc};
 use std::boxed::Box as StdBox;
 
 use crate::helpers::ui_helpers;
@@ -17,30 +16,50 @@ use super::back_button::BackButton;
 #[derive(Clone)]
 pub struct Menu {
   popover: Popover,
+  menu_items: Rc<RefCell<Vec<MenuItem>>>,
+  selected_index: Rc<RefCell<Option<usize>>>,
   menu_data: Rc<OnceCell<TypedListStore<MenuItemModel>>>,
   current_menu: Rc<RefCell<TypedListStore<MenuItemModel>>>,
   menu_stack: Rc<RefCell<Vec<TypedListStore<MenuItemModel>>>>,
   breadcrumbs: Rc<RefCell<Vec<String>>>,
-  menu_clicked_callback: Rc<OnceCell<StdBox<dyn Fn(&MenuItemModel)>>>
+  before_menu_show_callback: Rc<OnceCell<StdBox<dyn Fn()>>>,
+  menu_clicked_callback: Rc<OnceCell<StdBox<dyn Fn(&MenuItemModel)>>>,
+  key_controller: EventControllerKey,
 }
 
 impl Menu {
   pub fn new() -> Self {
     let popover = Popover::builder()
-      .autohide(false)
+      .autohide(true)
       .has_arrow(false)
       .position(PositionType::Bottom)
-      .can_focus(false)
-      .focusable(false)
+      .can_focus(true)
+      .focusable(true)
       .build();
+
+    let key_controller = EventControllerKey::new();
+    let popover_clone = popover.clone();
+    key_controller.connect_key_pressed(move |_, key, _,_| {
+      if key == Key::Down {
+        popover_clone.popdown();
+      }
+
+      Propagation::Stop
+    });
+
+    popover.add_controller(key_controller.clone());
 
     Self {
       popover,
+      menu_items: Rc::new(RefCell::new(Vec::new())),
+      selected_index: Rc::new(RefCell::new(None)),
       menu_data: Rc::new(OnceCell::new()),
       current_menu: Rc::new(RefCell::new(TypedListStore::new())),
       menu_stack: Rc::new(RefCell::new(Vec::new())),
       breadcrumbs: Rc::new(RefCell::new(Vec::new())),
+      before_menu_show_callback: Rc::new(OnceCell::new()),
       menu_clicked_callback: Rc::new(OnceCell::new()),
+      key_controller,
     }
   }
 
@@ -52,14 +71,19 @@ impl Menu {
     if self.popover.is_visible() {
       self.popover.popdown();
     } else {
+      let self_clone = self.clone();
+
+      if let Some(callback) = self_clone.before_menu_show_callback.get() {
+        callback();
+      }
+
       self.update_popover_alignment();
-      //Self::close_other_button_menus(popover);
       self.reset_menu();
       self.popover.popup();
     }
   }
 
-  fn hide_menu(&self) {
+  pub fn hide_menu(&self) {
     if self.popover.is_visible() {
       self.popover.popdown();
     }
@@ -105,13 +129,16 @@ impl Menu {
       return;
     }
 
-    let menu_box = self.create_menu();
+    let (menu_box, menu_items) = self.create_menu();
+    *self.menu_items.borrow_mut() = menu_items;
+    *self.selected_index.borrow_mut() = None;
     self.popover.set_child(Some(&menu_box));
   }
 
-  fn create_menu(&self) -> Box {
-    let menu_box = ui_helpers::create_styled_box(Orientation::Vertical, 0, vec!["dropdown-menu".to_string()]);
-    
+  fn create_menu(&self) -> (Box, Vec<MenuItem>) {
+    let menu_box = ui_helpers::create_styled_box(Orientation::Vertical, 0, vec!["menu".to_string()]);
+    let mut menu_items = Vec::new();
+
     if self.is_submenu() {
       let back_button = BackButton::new(self.get_back_button_label());
       let separator = ui_helpers::create_menu_separator();
@@ -146,10 +173,11 @@ impl Menu {
         });
 
         menu_box.append(&menu_item_widget.widget());
+        menu_items.push(menu_item_widget);
       }
     }    
     
-    menu_box
+    (menu_box, menu_items)
   }
 
   fn show_submenu(&self, menu_item: &MenuItemModel) {
