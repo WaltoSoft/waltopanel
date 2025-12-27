@@ -4,6 +4,7 @@ use gtk::glib::object::ObjectExt;
 use gtk::glib::subclass::Signal;
 use gtk::glib::types::StaticType;
 use gtk::glib::value::ToValue;
+use gtk::prelude::WidgetExt;
 use gtk::subclass::widget::{WidgetClassExt, WidgetImpl};
 use gtk::{BinLayout, Orientation, Widget};
 use gtk::glib::{self, ParamSpec, ParamSpecObject, ParamSpecString, Value, object_subclass};
@@ -48,7 +49,7 @@ impl ObjectSubclass for PanelButtonImp {
 
   fn class_init(klass: &mut Self::Class) {
     klass.set_layout_manager_type::<BinLayout>();
-    klass.set_css_name("panelbutton");
+    klass.set_css_name("button");
   }
 }
 
@@ -134,6 +135,8 @@ impl PanelButtonImp {
     let obj = self.obj();
     let button = Button::new(&*obj);
     let menu = Menu::new();
+
+    obj.add_css_class("panelbutton");
 
     menu.set_parent(&button);
 

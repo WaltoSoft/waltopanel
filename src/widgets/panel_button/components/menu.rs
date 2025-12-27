@@ -16,21 +16,18 @@ use super::back_button::BackButton;
 #[derive(Clone)]
 pub struct Menu {
   popover: Popover,
-  menu_items: Rc<RefCell<Vec<MenuItem>>>,
-  selected_index: Rc<RefCell<Option<usize>>>,
   menu_data: Rc<OnceCell<TypedListStore<MenuItemModel>>>,
   current_menu: Rc<RefCell<TypedListStore<MenuItemModel>>>,
   menu_stack: Rc<RefCell<Vec<TypedListStore<MenuItemModel>>>>,
   breadcrumbs: Rc<RefCell<Vec<String>>>,
   before_menu_show_callback: Rc<OnceCell<StdBox<dyn Fn()>>>,
-  menu_clicked_callback: Rc<OnceCell<StdBox<dyn Fn(&MenuItemModel)>>>,
-  key_controller: EventControllerKey,
+  menu_clicked_callback: Rc<OnceCell<StdBox<dyn Fn(&MenuItemModel)>>>
 }
 
 impl Menu {
   pub fn new() -> Self {
     let popover = Popover::builder()
-      .autohide(true)
+      .autohide(false)
       .has_arrow(false)
       .position(PositionType::Bottom)
       .can_focus(true)
@@ -38,29 +35,20 @@ impl Menu {
       .build();
 
     let key_controller = EventControllerKey::new();
-    let popover_clone = popover.clone();
-    key_controller.connect_key_pressed(move |_, key, _,_| {
-      if key == Key::Down {
-        popover_clone.popdown();
-      }
-
-      Propagation::Stop
-    });
-
     popover.add_controller(key_controller.clone());
 
-    Self {
+    let menu = Self {
       popover,
-      menu_items: Rc::new(RefCell::new(Vec::new())),
-      selected_index: Rc::new(RefCell::new(None)),
       menu_data: Rc::new(OnceCell::new()),
       current_menu: Rc::new(RefCell::new(TypedListStore::new())),
       menu_stack: Rc::new(RefCell::new(Vec::new())),
       breadcrumbs: Rc::new(RefCell::new(Vec::new())),
       before_menu_show_callback: Rc::new(OnceCell::new()),
       menu_clicked_callback: Rc::new(OnceCell::new()),
-      key_controller,
-    }
+    };
+
+
+    menu
   }
 
   pub fn set_menu(&self, menu: TypedListStore<MenuItemModel>) {
@@ -80,6 +68,7 @@ impl Menu {
       self.update_popover_alignment();
       self.reset_menu();
       self.popover.popup();
+      self.popover.grab_focus();
     }
   }
 
@@ -130,13 +119,21 @@ impl Menu {
     }
 
     let (menu_box, menu_items) = self.create_menu();
-    *self.menu_items.borrow_mut() = menu_items;
-    *self.selected_index.borrow_mut() = None;
     self.popover.set_child(Some(&menu_box));
+    
+    // Focus the first menu item for keyboard navigation
+    if let Some(first_item) = menu_items.first() {
+      first_item.widget().grab_focus();
+    }
   }
 
   fn create_menu(&self) -> (Box, Vec<MenuItem>) {
     let menu_box = ui_helpers::create_styled_box(Orientation::Vertical, 0, vec!["menu".to_string()]);
+    
+    // Enable focus navigation within the menu
+    menu_box.set_focusable(false); // Container itself shouldn't steal focus
+    menu_box.set_focus_on_click(false);
+    
     let mut menu_items = Vec::new();
 
     if self.is_submenu() {
@@ -168,7 +165,7 @@ impl Menu {
             if let Some(callback) = menu_clone.menu_clicked_callback.get() {
               callback(model);
             }
-            menu_clone.hide_menu();
+            //menu_clone.hide_menu();
           }
         });
 

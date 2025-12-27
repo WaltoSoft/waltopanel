@@ -9,7 +9,10 @@ use crate::curtain_bar::CurtainBar;
 
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+
   adw::init().unwrap();
+
+  dump_gtk_theme_settings();
 
   // Load CSS
   let css_provider = gtk::CssProvider::new();
@@ -103,4 +106,16 @@ fn create_panel_for_monitor(
   panel.window.set_monitor(Some(monitor));
   
   Ok(panel)
+}
+
+use gtk::prelude::*;
+
+pub fn dump_gtk_theme_settings() {
+    let settings = gtk::Settings::default().expect("No default GtkSettings");
+
+    let theme: Option<String> = settings.property("gtk-theme-name");
+    let icon_theme: Option<String> = settings.property("gtk-icon-theme-name");
+
+    eprintln!("gtk-theme-name: {:?}", theme);
+    eprintln!("gtk-icon-theme-name: {:?}", icon_theme);
 }

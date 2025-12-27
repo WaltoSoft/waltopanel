@@ -1,8 +1,8 @@
-panelbutton > popover > contents {
+.panelbutton > popover > contents {
   border-radius: 0px;
 }
 
-panelbutton .menu {
+.panelbutton .menu {
   padding: 2px 0;
   min-width: 200px;
   background-color: var(--popover-bg-color);
@@ -11,14 +11,20 @@ panelbutton .menu {
   box-shadow: none;
 }
 
-panelbutton .menu-item,
-panelbutton .back-button {
+.panelbutton .menu-item,
+.panelbutton .back-button {
   padding: 6px 16px;
   background-color: var(--popover-bg-color);
 }
 
-panelbutton .menu-separator {
+.panelbutton .menu-item:focus,
+.panelbutton .menu-item:hover {
+  background-color: var(--accent-bg-color);
+  color: var(--accent-fg-colors);
+}
+
+.panelbutton .menu-separator {
   margin: 4px 8px;
-  background-color: var(--borders);
+  background-color: var(--borders); 
   min-height: 1px;
 }

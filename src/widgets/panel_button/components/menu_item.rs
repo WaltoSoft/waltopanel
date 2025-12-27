@@ -1,5 +1,5 @@
 use gtk::glib::object::Cast;
-use gtk::prelude::{BoxExt, WidgetExt};
+use gtk::prelude::{BoxExt, EventControllerExt, WidgetExt};
 use gtk::{Box, GestureClick, Grid, Label, Widget}; 
 use gtk::{Align, Orientation, prelude::GridExt};
 
@@ -7,6 +7,7 @@ use crate::models::MenuItemModel;
 use crate::helpers::ui_helpers;
 use crate::traits::CompositeWidget;
 
+#[derive(Clone)]
 pub struct MenuItem {
   container: Box,
   model: MenuItemModel,
@@ -20,6 +21,10 @@ impl MenuItem {
     let column_spacing = 12;
 
     let container = ui_helpers::create_styled_box(Orientation::Horizontal, 0, vec!["menu-item".to_string()]);
+    container.set_focusable(true);
+    container.set_can_focus(true);
+    container.set_focus_on_click(true);
+
     let content_grid = Grid::builder().column_spacing(column_spacing).build();
     let icon_widget = ui_helpers::create_icon_widget(model.icon_name(), icon_size);
 
@@ -78,7 +83,11 @@ impl MenuItem {
   {
     let model = self.model.clone();
 
-    self.click_gesture.connect_released(move |_, _, _, _| {
+    self.click_gesture.connect_released(move |gesture, _, _, _| {
+      if let Some(widget) = gesture.widget() {
+        widget.grab_focus();
+      }
+      
       callback(&model);
     });    
 
