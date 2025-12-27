@@ -31,7 +31,7 @@ impl Menu {
       .has_arrow(false)
       .position(PositionType::Bottom)
       .can_focus(true)
-      .focusable(true)
+      .focusable(false)
       .build();
 
     let key_controller = EventControllerKey::new();
@@ -120,20 +120,10 @@ impl Menu {
 
     let (menu_box, menu_items) = self.create_menu();
     self.popover.set_child(Some(&menu_box));
-    
-    // Focus the first menu item for keyboard navigation
-    if let Some(first_item) = menu_items.first() {
-      first_item.widget().grab_focus();
-    }
   }
 
   fn create_menu(&self) -> (Box, Vec<MenuItem>) {
     let menu_box = ui_helpers::create_styled_box(Orientation::Vertical, 0, vec!["menu".to_string()]);
-    
-    // Enable focus navigation within the menu
-    menu_box.set_focusable(false); // Container itself shouldn't steal focus
-    menu_box.set_focus_on_click(false);
-    
     let mut menu_items = Vec::new();
 
     if self.is_submenu() {
