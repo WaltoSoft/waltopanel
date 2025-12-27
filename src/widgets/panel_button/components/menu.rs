@@ -1,8 +1,8 @@
 use gtk::gdk::{Key, prelude::{DisplayExt, MonitorExt, SurfaceExt}};
 use gtk::gio::prelude::ListModelExt;
 use gtk::glib::{object::Cast, Propagation};
-use gtk::{Align, Box, EventControllerKey, Orientation, Popover, PositionType, Widget};
-use gtk::prelude::{BoxExt, NativeExt, PopoverExt, WidgetExt};
+use gtk::{Align, Box, EventControllerKey, EventControllerMotion, ListBox, ListBoxRow, Orientation, Popover, PositionType, SelectionMode, Widget};
+use gtk::prelude::{BoxExt, ListBoxRowExt, NativeExt, PopoverExt, WidgetExt};
 use std::{cell::{OnceCell, RefCell}, rc::Rc};
 use std::boxed::Box as StdBox;
 
@@ -27,12 +27,27 @@ pub struct Menu {
 impl Menu {
   pub fn new() -> Self {
     let popover = Popover::builder()
-      .autohide(false)
+      .autohide(true)
       .has_arrow(false)
       .position(PositionType::Bottom)
       .can_focus(true)
-      .focusable(false)
+      .focusable(true)
       .build();
+
+    popover.connect_show(move |popover| {
+      // When the popover is shown, set the panel button to active state
+      // Parent chain: Popover -> Button -> PanelButton
+      if let Some(panel_button) = popover.parent().and_then(|b| b.parent()) {
+        panel_button.set_state_flags(gtk::StateFlags::ACTIVE, false);
+      }
+    });
+
+    popover.connect_hide(move |popover| {
+      // When the popover is hidden, unset the panel button active state
+      if let Some(panel_button) = popover.parent().and_then(|b| b.parent()) {
+        panel_button.unset_state_flags(gtk::StateFlags::ACTIVE);
+      }
+    });
 
     let key_controller = EventControllerKey::new();
     popover.add_controller(key_controller.clone());
@@ -68,7 +83,6 @@ impl Menu {
       self.update_popover_alignment();
       self.reset_menu();
       self.popover.popup();
-      self.popover.grab_focus();
     }
   }
 
@@ -118,33 +132,70 @@ impl Menu {
       return;
     }
 
-    let (menu_box, menu_items) = self.create_menu();
+    let (menu_box, list_box, _menu_items) = self.create_menu();
     self.popover.set_child(Some(&menu_box));
+    
+    // Focus the list box and select the first row for keyboard navigation
+    list_box.grab_focus();
+    if let Some(first_row) = list_box.row_at_index(0) {
+      list_box.select_row(Some(&first_row));
+      first_row.grab_focus();
+    }
   }
 
-  fn create_menu(&self) -> (Box, Vec<MenuItem>) {
+  fn create_menu(&self) -> (Box, ListBox, Vec<MenuItem>) {
     let menu_box = ui_helpers::create_styled_box(Orientation::Vertical, 0, vec!["menu".to_string()]);
+    
+    let list_box = ListBox::new();
+    list_box.set_selection_mode(SelectionMode::Browse); // Highlights focused row
+    list_box.add_css_class("menu-list");
+    
     let mut menu_items = Vec::new();
 
     if self.is_submenu() {
       let back_button = BackButton::new(self.get_back_button_label());
-      let separator = ui_helpers::create_menu_separator();
       let menu_clone = self.clone();
 
       back_button.connect_clicked(move || {
         menu_clone.show_submenu_parent();
       });
 
-      menu_box.append(&back_button.widget());
-      menu_box.append(&separator);
-    }
+      let back_row = ListBoxRow::new();
+      back_row.set_child(Some(&back_button.widget()));
+      back_row.add_css_class("menu-back-row");
+      back_row.add_css_class("has-separator-after");  // Add separator after back button
+      
+      // Focus and select row on hover
+      let motion = EventControllerMotion::new();
+      let back_row_clone = back_row.clone();
+      let list_box_clone = list_box.clone();
+      motion.connect_enter(move |_, _, _| {
+        list_box_clone.select_row(Some(&back_row_clone));
+        back_row_clone.grab_focus();
+      });
+      back_row.add_controller(motion);
+      
+      // Connect row activation (Enter key) for back button
+      let menu_clone = self.clone();
+      back_row.connect_activate(move |_row| {
+        menu_clone.show_submenu_parent();
+      });
+      
+      list_box.append(&back_row);
+    }  
 
     for menu_item in &self.current_menu() {
       if menu_item.is_separator() {
-        let separator = ui_helpers::create_menu_separator();
-        menu_box.append(&separator);
+        // Instead of adding a separator row, mark the previous row with a CSS class
+        // The visual separator will be created with CSS border-bottom
+        if let Some(last_row) = list_box.last_child() {
+          if let Some(row) = last_row.downcast_ref::<ListBoxRow>() {
+            row.add_css_class("has-separator-after");
+          }
+        }
       }
       else {
+        let model_clone = menu_item.clone();
         let menu_item_widget = MenuItem::new(menu_item, self.menu_has_toggable_items(), self.menu_has_icons(), self.is_submenu());
         let menu_clone = self.clone();
 
@@ -155,16 +206,43 @@ impl Menu {
             if let Some(callback) = menu_clone.menu_clicked_callback.get() {
               callback(model);
             }
-            //menu_clone.hide_menu();
+            menu_clone.hide_menu();
           }
         });
 
-        menu_box.append(&menu_item_widget.widget());
+        let row = ListBoxRow::new();
+        row.set_child(Some(&menu_item_widget.widget()));
+        
+        // Focus and select row on hover
+        let motion = EventControllerMotion::new();
+        let row_clone = row.clone();
+        let list_box_clone = list_box.clone();
+        motion.connect_enter(move |_, _, _| {
+          list_box_clone.select_row(Some(&row_clone));
+          row_clone.grab_focus();
+        });
+        row.add_controller(motion);
+        
+        // Connect row activation (Enter key)
+        let menu_clone = self.clone();
+        row.connect_activate(move |_row| {
+          if model_clone.has_submenu() {
+            menu_clone.show_submenu(&model_clone);
+          } else {
+            if let Some(callback) = menu_clone.menu_clicked_callback.get() {
+              callback(&model_clone);
+            }
+            menu_clone.hide_menu();
+          }
+        });
+        
+        list_box.append(&row);
         menu_items.push(menu_item_widget);
       }
     }    
     
-    (menu_box, menu_items)
+    menu_box.append(&list_box);
+    (menu_box, list_box, menu_items)
   }
 
   fn show_submenu(&self, menu_item: &MenuItemModel) {

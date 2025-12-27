@@ -142,6 +142,7 @@ impl PanelButtonImp {
 
     let obj_clone = obj.clone();
     menu.connect_menu_clicked(move |model| {
+      println!("Menu item clicked: {}", model.text());
       obj_clone.emit_by_name::<()>("menu-item-clicked", &[&model]);
     });
 

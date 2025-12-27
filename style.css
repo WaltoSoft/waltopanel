@@ -1,30 +1,37 @@
-.panelbutton > popover > contents {
+window {
+  background-color: --var(--window-bg-color);
+}
+
+.panelbutton {
   border-radius: 0px;
+  background-color: var(--window-bg-color);
+}
+
+.panelbutton:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.panelbutton popover contents {
+  border-radius: 0px;
+  background-color: var(--window-bg-color);
 }
 
 .panelbutton .menu {
   padding: 2px 0;
   min-width: 200px;
-  background-color: var(--popover-bg-color);
-  border: 1px solid var(--borders);
-  border-radius: 0px;
-  box-shadow: none;
 }
 
 .panelbutton .menu-item,
 .panelbutton .back-button {
   padding: 6px 16px;
-  background-color: var(--popover-bg-color);
 }
 
-.panelbutton .menu-item:focus,
-.panelbutton .menu-item:hover {
-  background-color: var(--accent-bg-color);
-  color: var(--accent-fg-colors);
+.panelbutton .menu-list row:focus-visible {
+  outline: none;
 }
 
-.panelbutton .menu-separator {
-  margin: 4px 8px;
-  background-color: var(--borders); 
-  min-height: 1px;
+.panelbutton .menu-list row.has-separator-after {
+  border-bottom: 1px solid alpha(currentColor, 0.2);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
 }
