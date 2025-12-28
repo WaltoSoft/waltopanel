@@ -1,7 +1,5 @@
-use gtk::gdk::Key;
-use gtk::glib::Propagation;
 use gtk::glib::object::Cast;
-use gtk::prelude::{BoxExt, EventControllerExt, WidgetExt};
+use gtk::prelude::{BoxExt, WidgetExt};
 use gtk::{Box, GestureClick, Grid, Label, Widget}; 
 use gtk::{Align, Orientation, prelude::GridExt};
 
@@ -9,7 +7,7 @@ use crate::models::MenuItemModel;
 use crate::helpers::ui_helpers;
 use crate::traits::CompositeWidget;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MenuItem {
   container: Box,
   model: MenuItemModel,
@@ -22,13 +20,29 @@ impl MenuItem {
     let icon_size = 16;
     let column_spacing = 12;
 
-    let container = ui_helpers::create_styled_box(Orientation::Horizontal, 0, vec!["menu-item".to_string()]);
-    container.set_focusable(true);
-    container.set_can_focus(true);
-    container.set_focus_on_click(true);
+    let container = 
+      Box::builder()
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["menu-item".to_string()])
+        .focus_on_click(true)
+        .can_focus(true)
+        .focusable(true)
+        .build();
 
-    let content_grid = Grid::builder().column_spacing(column_spacing).build();
-    let icon_widget = ui_helpers::create_icon_widget(model.icon_name(), icon_size);
+    let content_grid = Grid::builder()
+      .column_spacing(column_spacing)
+      .build();
+
+    let label = Label::builder()
+      .label(model.text())
+      .halign(Align::Start)
+      .hexpand(true)
+      .valign(Align::Center)
+      .build();    
+
+    let icon_widget = ui_helpers::create_icon_widget(
+      model.icon_name(), 
+      icon_size);
 
     let toggled_icon = if menu_has_toggable_items && model.toggled() {
       Some("object-select-symbolic".to_string())
@@ -53,13 +67,6 @@ impl MenuItem {
       col += 1;
     }
 
-    let label = Label::builder()
-      .label(model.text())
-      .halign(Align::Start)
-      .hexpand(true)
-      .valign(Align::Center)
-      .build();    
-
     content_grid.attach(&label, col, 0, 1, 1);
     col += 1;
 
@@ -69,8 +76,9 @@ impl MenuItem {
       content_grid.attach(&arrow_icon_widget, col, 0, 1,1);
     } 
 
-    container.append(&content_grid);
     let click_gesture = GestureClick::new();
+
+    container.append(&content_grid);
     container.add_controller(click_gesture.clone());
     
     Self {
@@ -86,7 +94,7 @@ impl MenuItem {
   {
     let model = self.model.clone();
 
-    self.click_gesture.connect_released(move |gesture, _, _, _| {
+    self.click_gesture.connect_released(move |_, _, _, _| {
       callback(&model);
     });    
 

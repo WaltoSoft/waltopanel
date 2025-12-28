@@ -1,9 +1,9 @@
-pub use gtk::{Box, Image, Label, Widget};
-use gtk::{EventControllerMotion, GestureClick, glib::object::{Cast, IsA, ObjectExt}, prelude::{BoxExt, WidgetExt}};
+use gtk::{Box, Image, Label, Widget};
+use gtk::{GestureClick, glib::object::{Cast, IsA, ObjectExt}, prelude::{BoxExt, WidgetExt}};
 
 use crate::traits::CompositeWidget;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Button {
   container: Box,
   click_gesture: GestureClick
@@ -19,15 +19,14 @@ impl Button {
     let icon_image = Image::new();
     let text_label = Label::new(None);
 
-    container.append(&icon_image);
-    container.append(&text_label);
-
     parent.bind_property("icon-name", &icon_image, "icon-name").build();
     parent.bind_property("text", &text_label, "label").build();
 
     let click_gesture = GestureClick::new();
-    container.add_controller(click_gesture.clone());
 
+    container.append(&icon_image);
+    container.append(&text_label);
+    container.add_controller(click_gesture.clone());
     container.set_parent(parent);
 
     Self {
