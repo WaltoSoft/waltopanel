@@ -163,6 +163,13 @@ impl PanelButtonImp {
     }
   }
 
+  pub fn show_menu(&self) {
+    if let Some(menu) = self.menu.get() {
+      PanelButton::close_other_instances(&self.obj());
+      menu.show_menu();
+    }
+  }
+
   pub fn hide_menu(&self) {
     if let Some(menu) = self.menu.get() {
       menu.hide_menu();

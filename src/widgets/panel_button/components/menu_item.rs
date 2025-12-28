@@ -1,3 +1,5 @@
+use gtk::gdk::Key;
+use gtk::glib::Propagation;
 use gtk::glib::object::Cast;
 use gtk::prelude::{BoxExt, EventControllerExt, WidgetExt};
 use gtk::{Box, GestureClick, Grid, Label, Widget}; 
