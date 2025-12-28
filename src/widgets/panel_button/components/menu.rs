@@ -6,12 +6,12 @@ use gtk::prelude::{BoxExt, ListBoxRowExt, NativeExt, PopoverExt, WidgetExt};
 use std::{cell::{OnceCell, RefCell}, rc::Rc};
 use std::boxed::Box as StdBox;
 
-use crate::{helpers::ui_helpers, widgets::PanelButton};
-use crate::models::MenuItemModel;
+use crate::{helpers::ui_helpers, models::MenuItemModel};
 use crate::traits::CompositeWidget;
 use crate::types::TypedListStore;
 use super::menu_item::MenuItem;
 use super::back_button::BackButton;
+use super::super::panel_button_api::PanelButton;
 
 #[derive(Clone)]
 pub struct Menu {
@@ -137,24 +137,11 @@ impl Menu {
       return;
     }
 
-    let (menu_box, list_box, _menu_items) = self.create_menu();
+    let menu_box  = self.create_menu();
     self.popover.set_child(Some(&menu_box));
-
-    // Defer selection until after the popover is shown and widgets are realized
-    let list_box_clone = list_box.clone();
-    glib::idle_add_local_once(move || {
-      // Switch to Browse mode now to allow selection
-      list_box_clone.set_selection_mode(SelectionMode::Browse);
-      list_box_clone.unselect_all();
-      list_box_clone.grab_focus();
-      if let Some(first_row) = list_box_clone.row_at_index(0) {
-        list_box_clone.select_row(Some(&first_row));
-        first_row.grab_focus();
-      }
-    });
   }
 
-  fn create_menu(&self) -> (Box, ListBox, Vec<MenuItem>) {
+  fn create_menu(&self) -> Box {
     let menu_box = Box::builder()
       .orientation(Orientation::Vertical)
       .css_classes(vec!["menu"])
@@ -258,7 +245,8 @@ impl Menu {
     }    
     
     menu_box.append(&list_box);
-    (menu_box, list_box, menu_items)
+    ui_helpers::defer_listbox_selection(&list_box);
+    menu_box
   }
 
   fn show_submenu(&self, menu_item: &MenuItemModel) {
