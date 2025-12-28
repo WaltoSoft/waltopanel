@@ -1,7 +1,6 @@
-use adw::subclass::prelude::ObjectSubclassIsExt;
 use gtk::gdk::{Key, prelude::{DisplayExt, MonitorExt, SurfaceExt}};
 use gtk::gio::prelude::ListModelExt;
-use gtk::glib::{object::Cast, Propagation};
+use gtk::glib::{self, object::Cast, Propagation};
 use gtk::{Align, Box, EventControllerKey, EventControllerMotion, ListBox, ListBoxRow, Orientation, Popover, PositionType, SelectionMode, Widget};
 use gtk::prelude::{BoxExt, ListBoxRowExt, NativeExt, PopoverExt, WidgetExt};
 use std::{cell::{OnceCell, RefCell}, rc::Rc};
@@ -47,15 +46,25 @@ impl Menu {
       }
     });
 
-    Self {
-      popover,
+    let menu = Self {
+      popover: popover.clone(),
       menu_data: Rc::new(OnceCell::new()),
       current_menu: Rc::new(RefCell::new(TypedListStore::new())),
       menu_stack: Rc::new(RefCell::new(Vec::new())),
       breadcrumbs: Rc::new(RefCell::new(Vec::new())),
       before_menu_show_callback: Rc::new(OnceCell::new()),
       menu_clicked_callback: Rc::new(OnceCell::new()),
-    }
+    };
+
+    // Add key controller to popover for Left/Right arrow handling
+    let key_controller = EventControllerKey::new();
+    let menu_clone = menu.clone();
+    key_controller.connect_key_pressed(move |_controller, keyval, _keycode, _state| {
+      menu_clone.handle_popover_key_press(keyval)
+    });
+    popover.add_controller(key_controller);
+
+    menu
   }
 
   pub fn set_menu(&self, menu: TypedListStore<MenuItemModel>) {
@@ -71,8 +80,6 @@ impl Menu {
   }
 
   pub fn show_menu(&self) {
-    println!("Menu show_menu called");
-
     let self_clone = self.clone();
 
     if let Some(callback) = self_clone.before_menu_show_callback.get() {
@@ -132,13 +139,17 @@ impl Menu {
 
     let (menu_box, list_box, _menu_items) = self.create_menu();
     self.popover.set_child(Some(&menu_box));
-    
-    // Focus the list box and select the first row for keyboard navigation
-    list_box.grab_focus();
-    if let Some(first_row) = list_box.row_at_index(0) {
-      list_box.select_row(Some(&first_row));
-      first_row.grab_focus();
-    }
+
+    // Defer selection until after the popover is shown and widgets are realized
+    let list_box_clone = list_box.clone();
+    glib::idle_add_local_once(move || {
+      list_box_clone.unselect_all();
+      list_box_clone.grab_focus();
+      if let Some(first_row) = list_box_clone.row_at_index(0) {
+        list_box_clone.select_row(Some(&first_row));
+        first_row.grab_focus();
+      }
+    });
   }
 
   fn create_menu(&self) -> (Box, ListBox, Vec<MenuItem>) {
@@ -179,11 +190,6 @@ impl Menu {
       back_button_row.connect_activate(move |_row| {
         menu_clone.show_submenu_parent();
       });
-
-      let key_controller = EventControllerKey::new();
-      println!("Connecting key pressed signal for back button");
-      key_controller.connect_key_pressed(handle_arrow_key_pressed(self.clone(), None));
-      back_button_row.add_controller(key_controller);        
 
       list_box.append(&back_button_row);
     }  
@@ -241,12 +247,6 @@ impl Menu {
           }
         });
 
-        let key_controller = EventControllerKey::new();
-        println!("Connecting key pressed signal for regular button");
-
-        key_controller.connect_key_pressed(handle_arrow_key_pressed(self.clone(), Some(menu_item.clone())));
-        row.add_controller(key_controller);        
-        
         list_box.append(&row);
         menu_items.push(menu_item_widget);
       }
@@ -325,50 +325,100 @@ impl Menu {
   {
     self.menu_clicked_callback.set(StdBox::new(callback)).ok().expect("Menu clicked callback can only be set once");
   }
-}
 
-pub fn handle_arrow_key_pressed(menu: Menu, model: Option<MenuItemModel>) -> impl Fn(&EventControllerKey, Key, u32, gtk::gdk::ModifierType) -> Propagation {
-  move |_controller, keyval, _keycode, _state| {
+  fn handle_popover_key_press(&self, keyval: Key) -> Propagation {
+    // Get the currently selected row from the list box
+    let Some(child) = self.popover.child() else {
+      return Propagation::Proceed;
+    };
+
+    let Some(menu_box) = child.downcast_ref::<Box>() else {
+      return Propagation::Proceed;
+    };
+
+    let Some(list_box_widget) = menu_box.last_child() else {
+      return Propagation::Proceed;
+    };
+
+    let Some(list_box) = list_box_widget.downcast_ref::<ListBox>() else {
+      return Propagation::Proceed;
+    };
+
+    let Some(selected_row) = list_box.selected_row() else {
+      return Propagation::Proceed;
+    };
+
     match keyval {
       Key::Right => {
+        // Get the index to find the corresponding model
+        let index = selected_row.index();
 
-        if let Some(model) = &model {
-          if model.has_submenu() {
-            menu.show_submenu(&model);
+        // Account for back button if in submenu
+        let row_index = if self.is_submenu() {
+          if index == 0 {
+            // Back button selected, do nothing on right arrow
             return Propagation::Stop;
           }
-          else {
-            println!("Trying to get parent panel button for sibling navigation"); 
-            if let Some(panel_button_widget) = menu.popover.parent().and_then(|b| b.parent()) {
-              println!("Found parent panel butto widgetn");               
-              if let Some(panel_button) = panel_button_widget.downcast_ref::<PanelButton>() {
-                println!("Found panel button instance");
-             
-                let next = panel_button.get_next_instance();
+          (index - 1) as usize
+        } else {
+          index as usize
+        };
 
-                if let Some(next_panel_button) = next {
+        // Find the model index accounting for separators
+        let mut model_index = 0;
+        let mut visible_row_count = 0;
+        for (idx, item) in self.current_menu().iter().enumerate() {
+          if !item.is_separator() {
+            if visible_row_count == row_index {
+              model_index = idx;
+              break;
+            }
+            visible_row_count += 1;
+          }
+        }
+
+        if let Some(model) = self.current_menu().get(model_index as u32) {
+          if model.has_submenu() {
+            self.show_submenu(&model);
+            return Propagation::Stop;
+          } else {
+            // Navigate to next panel button
+            if let Some(panel_button_widget) = self.popover.parent().and_then(|b| b.parent()) {
+              if let Some(panel_button) = panel_button_widget.downcast_ref::<PanelButton>() {
+                if let Some(next_panel_button) = panel_button.get_next_instance() {
+                  // Hide current menu before showing next one
+                  self.hide_menu();
                   next_panel_button.show_menu();
                   return Propagation::Stop;
-                } 
-
-                return Propagation::Stop;
+                }
               }
             }
-
-            println!("Out");
           }
         }
       }
       Key::Left => {
-        if model.is_none() {
-          if menu.is_submenu() {
-            menu.show_submenu_parent();
-            return Propagation::Stop;
+        let index = selected_row.index();
+
+        // If we're on the back button in a submenu, go back to parent menu
+        if index == 0 && self.is_submenu() {
+          self.show_submenu_parent();
+          return Propagation::Stop;
+        }
+
+        // Otherwise, navigate to previous panel button
+        if let Some(panel_button_widget) = self.popover.parent().and_then(|b| b.parent()) {
+          if let Some(panel_button) = panel_button_widget.downcast_ref::<PanelButton>() {
+            if let Some(prev_panel_button) = panel_button.get_previous_instance() {
+              self.hide_menu();
+              prev_panel_button.show_menu();
+              return Propagation::Stop;
+            }
           }
         }
       }
       _ => {}
     }
+
     Propagation::Proceed
   }
 }

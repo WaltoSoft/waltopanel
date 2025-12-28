@@ -64,15 +64,9 @@ impl ObjectImpl for MenuItemModelPrivate {
       "allow-toggle" => self.allow_toggle.borrow().to_value(),
       "is-separator" => self.is_separator.borrow().to_value(),
       "submenu" => {
-        // Convert TypedListStore to ListStore for GObject property
+        // Return the actual inner ListStore from TypedListStore
         let typed_store = self.submenu.borrow();
-        // We need to get the inner ListStore - but TypedListStore doesn't expose it
-        // For now, create a new ListStore and populate it
-        let list_store = ListStore::new::<MenuItemModel>();
-        for item in typed_store.iter() {
-          list_store.append(&item);
-        }
-        list_store.to_value()
+        typed_store.as_list_store().to_value()
       },
       _ => unimplemented!(),
     }
