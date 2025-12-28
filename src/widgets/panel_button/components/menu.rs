@@ -143,6 +143,8 @@ impl Menu {
     // Defer selection until after the popover is shown and widgets are realized
     let list_box_clone = list_box.clone();
     glib::idle_add_local_once(move || {
+      // Switch to Browse mode now to allow selection
+      list_box_clone.set_selection_mode(SelectionMode::Browse);
       list_box_clone.unselect_all();
       list_box_clone.grab_focus();
       if let Some(first_row) = list_box_clone.row_at_index(0) {
@@ -153,10 +155,13 @@ impl Menu {
   }
 
   fn create_menu(&self) -> (Box, ListBox, Vec<MenuItem>) {
-    let menu_box = ui_helpers::create_styled_box(Orientation::Vertical, 0, vec!["menu".to_string()]);
-    
+    let menu_box = Box::builder()
+      .orientation(Orientation::Vertical)
+      .css_classes(vec!["menu"])
+      .build();
+
     let list_box = ListBox::new();
-    list_box.set_selection_mode(SelectionMode::Browse); // Highlights focused row
+    list_box.set_selection_mode(SelectionMode::None); // Start with no selection to prevent flash
     list_box.add_css_class("menu-list");
     
     let mut menu_items = Vec::new();
