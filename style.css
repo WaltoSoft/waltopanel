@@ -23,7 +23,26 @@ window {
 
 .panelbutton .menu-item,
 .panelbutton .back-button {
+  background-color: var(--window-bg-color);
+  border: solid 0px transparent;
   padding: 6px 16px;
+}
+
+.panelbutton .menu-list {
+  background-color: transparent;
+  border:none;
+}
+
+.panelbutton .menu-list row {
+  background-color: transparent;
+  border:none;
+  box-shadow: none;
+}
+
+.panelbutton .menu-list row:selected .menu-item,
+.panelbutton .menu-list row:selected .back-button {
+  background-color: var(--accent-bg-color);
+  color: var(--accent-fg-color);
 }
 
 .panelbutton .menu-list row:focus-visible {
