@@ -13,7 +13,7 @@ pub struct MenuItemModelPrivate {
   pub(super) icon_name: RefCell<Option<String>>,
   pub(super) toggled: RefCell<bool>,
   pub(super) allow_toggle: RefCell<bool>,
-  pub(super) is_separator: RefCell<bool>,
+  pub(super) separator_after: RefCell<bool>,
   pub(super) submenu: RefCell<TypedListStore<MenuItemModel>>,
 }
 
@@ -25,7 +25,7 @@ impl Default for MenuItemModelPrivate {
       icon_name: RefCell::new(None),
       toggled: RefCell::new(false),
       allow_toggle: RefCell::new(false),
-      is_separator: RefCell::new(false),
+      separator_after: RefCell::new(false),
       submenu: RefCell::new(TypedListStore::new()),
     }
   }
@@ -49,7 +49,7 @@ impl ObjectImpl for MenuItemModelPrivate {
         ParamSpecString::builder("icon-name").build(),
         ParamSpecBoolean::builder("toggled").build(),
         ParamSpecBoolean::builder("allow-toggle").build(),
-        ParamSpecBoolean::builder("is-separator").build(),
+        ParamSpecBoolean::builder("separator-after").build(),
         ParamSpecObject::builder::<ListStore>("submenu").build(),
       ]
     })
@@ -62,9 +62,8 @@ impl ObjectImpl for MenuItemModelPrivate {
       "icon-name" => self.icon_name.borrow().to_value(),
       "toggled" => self.toggled.borrow().to_value(),
       "allow-toggle" => self.allow_toggle.borrow().to_value(),
-      "is-separator" => self.is_separator.borrow().to_value(),
+      "separator-after" => self.separator_after.borrow().to_value(),
       "submenu" => {
-        // Return the actual inner ListStore from TypedListStore
         let typed_store = self.submenu.borrow();
         typed_store.as_list_store().to_value()
       },
@@ -94,9 +93,9 @@ impl ObjectImpl for MenuItemModelPrivate {
           let allow_toggle = value.get().expect("type checked upstream");
           self.allow_toggle.replace(allow_toggle);
       }
-      "is-separator" => {
-          let is_separator = value.get().expect("type checked upstream");
-          self.is_separator.replace(is_separator);
+      "separator-after" => {
+          let separator_after = value.get().expect("type checked upstream");
+          self.separator_after.replace(separator_after);
       }
       "submenu" => {
           let list_store: ListStore = value.get().expect("type checked upstream");

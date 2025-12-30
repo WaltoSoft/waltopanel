@@ -214,12 +214,11 @@ impl CurtainBar {
     recent_submenu.append(&MenuItemModel::new("recent3", "style.css"));
     let recent_item = MenuItemModel::new("recent", "Recent Files").with_icon("document-open-recent-symbolic");
     recent_item.set_submenu(recent_submenu);
+    recent_item.set_separator_after(true);
     file_items.append(&recent_item);
 
-    file_items.append(&MenuItemModel::separator());
     file_items.append(&MenuItemModel::new("save", "Save").with_icon("document-save-symbolic"));
-    file_items.append(&MenuItemModel::new("save_as", "Save As...").with_icon("document-save-as-symbolic"));
-    file_items.append(&MenuItemModel::separator());
+    file_items.append(&MenuItemModel::new("save_as", "Save As...").with_icon("document-save-as-symbolic").with_separator_after());
     file_items.append(&MenuItemModel::new("quit", "Quit").with_icon("application-exit-symbolic"));
 
     file_menu.set_menu(file_items);
@@ -232,12 +231,10 @@ impl CurtainBar {
 
     let edit_items = TypedListStore::new();
     edit_items.append(&MenuItemModel::new("undo", "Undo").with_icon("edit-undo-symbolic"));
-    edit_items.append(&MenuItemModel::new("redo", "Redo").with_icon("edit-redo-symbolic"));
-    edit_items.append(&MenuItemModel::separator());
+    edit_items.append(&MenuItemModel::new("redo", "Redo").with_icon("edit-redo-symbolic").with_separator_after());
     edit_items.append(&MenuItemModel::new("cut", "Cut").with_icon("edit-cut-symbolic"));
     edit_items.append(&MenuItemModel::new("copy", "Copy").with_icon("edit-copy-symbolic"));
-    edit_items.append(&MenuItemModel::new("paste", "Paste").with_icon("edit-paste-symbolic"));
-    edit_items.append(&MenuItemModel::separator());
+    edit_items.append(&MenuItemModel::new("paste", "Paste").with_icon("edit-paste-symbolic").with_separator_after());
     edit_items.append(&MenuItemModel::new("find", "Find").with_icon("edit-find-symbolic"));
     edit_items.append(&MenuItemModel::new("replace", "Replace").with_icon("edit-find-replace-symbolic"));
 
@@ -253,8 +250,7 @@ impl CurtainBar {
     view_items.append(&MenuItemModel::new("fullscreen", "Fullscreen").with_icon("view-fullscreen-symbolic"));
     view_items.append(&MenuItemModel::new("zoom_in", "Zoom In").with_icon("zoom-in-symbolic"));
     view_items.append(&MenuItemModel::new("zoom_out", "Zoom Out").with_icon("zoom-out-symbolic"));
-    view_items.append(&MenuItemModel::new("zoom_reset", "Reset Zoom").with_icon("zoom-original-symbolic"));
-    view_items.append(&MenuItemModel::separator());
+    view_items.append(&MenuItemModel::new("zoom_reset", "Reset Zoom").with_icon("zoom-original-symbolic").with_separator_after());
     view_items.append(&MenuItemModel::new("dark_mode", "Dark Mode")
         .with_icon("weather-clear-night-symbolic")
         .toggled_on());
@@ -277,8 +273,7 @@ impl CurtainBar {
     let tools_items = TypedListStore::new();
     tools_items.append(&MenuItemModel::new("terminal", "Terminal").with_icon("utilities-terminal-symbolic"));
     tools_items.append(&MenuItemModel::new("calculator", "Calculator").with_icon("accessories-calculator-symbolic"));
-    tools_items.append(&MenuItemModel::new("text_editor", "Text Editor").with_icon("accessories-text-editor-symbolic"));
-    tools_items.append(&MenuItemModel::separator());
+    tools_items.append(&MenuItemModel::new("text_editor", "Text Editor").with_icon("accessories-text-editor-symbolic").with_separator_after());
     tools_items.append(&MenuItemModel::new("system_monitor", "System Monitor").with_icon("utilities-system-monitor-symbolic"));
     tools_items.append(&MenuItemModel::new("disk_usage", "Disk Usage").with_icon("baobab-symbolic"));
 
@@ -300,12 +295,10 @@ impl CurtainBar {
 
     let debug_items = TypedListStore::new();
     debug_items.append(&MenuItemModel::new("start_debug", "Start Debugging").with_icon("media-playback-start-symbolic"));
-    debug_items.append(&MenuItemModel::new("stop_debug", "Stop Debugging").with_icon("media-playback-stop-symbolic"));
-    debug_items.append(&MenuItemModel::separator());
+    debug_items.append(&MenuItemModel::new("stop_debug", "Stop Debugging").with_icon("media-playback-stop-symbolic").with_separator_after());
     debug_items.append(&MenuItemModel::new("breakpoint", "Toggle Breakpoint").with_icon("media-record-symbolic"));
     debug_items.append(&MenuItemModel::new("step_over", "Step Over").with_icon("go-next-symbolic"));
-    debug_items.append(&MenuItemModel::new("step_into", "Step Into").with_icon("go-down-symbolic"));
-    debug_items.append(&MenuItemModel::separator());
+    debug_items.append(&MenuItemModel::new("step_into", "Step Into").with_icon("go-down-symbolic").with_separator_after());
     debug_items.append(&MenuItemModel::new("verbose_logging", "Verbose Logging")
         .with_icon("text-x-generic-symbolic")
         .toggled_on());
@@ -321,8 +314,7 @@ impl CurtainBar {
     let help_items = TypedListStore::new();
     help_items.append(&MenuItemModel::new("documentation", "Documentation").with_icon("help-contents-symbolic"));
     help_items.append(&MenuItemModel::new("shortcuts", "Keyboard Shortcuts").with_icon("input-keyboard-symbolic"));
-    help_items.append(&MenuItemModel::new("tutorial", "Tutorial").with_icon("applications-education-symbolic"));
-    help_items.append(&MenuItemModel::separator());
+    help_items.append(&MenuItemModel::new("tutorial", "Tutorial").with_icon("applications-education-symbolic").with_separator_after());
     help_items.append(&MenuItemModel::new("report_bug", "Report Bug").with_icon("tools-report-bug-symbolic"));
     help_items.append(&MenuItemModel::new("about", "About").with_icon("help-about-symbolic"));
 
@@ -359,8 +351,7 @@ impl CurtainBar {
     let system_items = TypedListStore::new();
     system_items.append(&MenuItemModel::new("system_info", "System Information").with_icon("dialog-information-symbolic"));
     system_items.append(&MenuItemModel::new("processes", "Processes").with_icon("utilities-system-monitor-symbolic"));
-    system_items.append(&MenuItemModel::new("services", "Services").with_icon("preferences-system-services-symbolic"));
-    system_items.append(&MenuItemModel::separator());
+    system_items.append(&MenuItemModel::new("services", "Services").with_icon("preferences-system-services-symbolic").with_separator_after());
 
     let power_submenu = gtk::gio::ListStore::new::<MenuItemModel>();
     power_submenu.append(&MenuItemModel::new("suspend", "Suspend"));
@@ -369,9 +360,9 @@ impl CurtainBar {
     power_submenu.append(&MenuItemModel::new("shutdown", "Shutdown"));
     let power_item = MenuItemModel::new("power", "Power Options").with_icon("system-shutdown-symbolic");
     power_item.set_submenu(power_submenu);
-    system_items.append(&power_item);
+    
+    system_items.append(&power_item.with_separator_after());
 
-    system_items.append(&MenuItemModel::separator());
     system_items.append(&MenuItemModel::new("auto_update", "Auto Updates")
         .with_icon("software-update-available-symbolic")
         .toggled_on());
@@ -387,8 +378,7 @@ impl CurtainBar {
     let monitor_items = TypedListStore::new();
     monitor_items.append(&MenuItemModel::new("display_settings", "Display Settings").with_icon("preferences-desktop-display-symbolic"));
     monitor_items.append(&MenuItemModel::new("resolution", "Resolution").with_icon("preferences-desktop-screensaver-symbolic"));
-    monitor_items.append(&MenuItemModel::new("brightness", "Brightness").with_icon("display-brightness-symbolic"));
-    monitor_items.append(&MenuItemModel::separator());
+    monitor_items.append(&MenuItemModel::new("brightness", "Brightness").with_icon("display-brightness-symbolic").with_separator_after());
     monitor_items.append(&MenuItemModel::new("wallpaper", "Wallpaper").with_icon("preferences-desktop-wallpaper-symbolic"));
     monitor_items.append(&MenuItemModel::new("screensaver", "Screensaver").with_icon("preferences-desktop-screensaver-symbolic"));
 

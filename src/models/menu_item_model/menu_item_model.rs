@@ -58,13 +58,13 @@ impl MenuItemModel {
   pub fn set_allow_toggle(&self, allow_toggle: bool) {
     self.set_property("allow-toggle", allow_toggle);
   }
-  
-  pub fn is_separator(&self) -> bool {
-    self.property("is-separator")
+
+  pub fn separator_after(&self) -> bool {
+    self.property("separator-after")
   }
-  
-  pub fn set_is_separator(&self, is_separator: bool) {
-    self.set_property("is-separator", is_separator);
+
+  pub fn set_separator_after(&self, separator_after: bool) {
+    self.set_property("separator-after", separator_after);
   }
   
   pub fn submenu(&self) -> TypedListStore<MenuItemModel> {
@@ -86,6 +86,11 @@ impl MenuItemModel {
     self
   }
 
+  pub fn with_separator_after(self) -> Self {
+    self.set_separator_after(true);
+    self
+  }
+
   pub fn with_toggle(self) -> Self {
     self.set_allow_toggle(true);
     self
@@ -97,11 +102,4 @@ impl MenuItemModel {
     self
   }
 
-  pub fn separator() -> Self {
-    let obj: Self = glib::Object::builder()
-      .property("is-separator", true)
-      .build();
-    obj.set_property("submenu", ListStore::new::<MenuItemModel>());
-    obj
-  }
 }

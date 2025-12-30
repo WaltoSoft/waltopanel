@@ -134,7 +134,7 @@ impl PanelButtonImp {
   fn initialize(&self) {
     let obj = self.obj();
     let button = Button::new(&*obj);
-    let menu = Menu::new();
+    let menu = Menu::new(&obj);
 
     obj.add_css_class("panelbutton");
 
