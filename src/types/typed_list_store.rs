@@ -63,7 +63,6 @@ impl<T: IsA<glib::Object>> TypedListStore<T> {
   pub fn as_list_store(&self) -> &ListStore {
     &self.inner
   }
-
 }
 
 pub struct TypedListStoreIter<'a, T> {

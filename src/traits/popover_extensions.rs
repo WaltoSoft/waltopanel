@@ -42,7 +42,7 @@ impl PopoverExtensions for Popover {
         .unwrap_or((0.0, 0.0));
 
       let button_width = button_menu_box.allocated_width();
-      let menu_width = 200;  //TODO: Magic number needs to be fixed.
+      let menu_width = 200;  // TODO: Magic number needs to be fixed.
       let space_right = monitor_geometry.width() - (button_x as i32 + button_width);
 
       if space_right >= menu_width {

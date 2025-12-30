@@ -28,14 +28,13 @@ impl<W: IsA<Widget>> WidgetExtensions for W {
       let image = Image::from_icon_name(&name.into());
       image.set_pixel_size(icon_size);
       image.upcast::<Widget>()
-    
     } else {
       let placeholder = Box::builder()
         .width_request(icon_size)
         .height_request(icon_size)
         .build();
     
-      placeholder.upcast()    
+      placeholder.upcast()
     }
   }  
 }

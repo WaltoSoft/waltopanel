@@ -1,5 +1,5 @@
 use gtk::{gio::ListStore, prelude::*};
-use gtk::glib::{self, Object, object_subclass,ParamSpec, ParamSpecString, ParamSpecBoolean, ParamSpecObject, Value};
+use gtk::glib::{self, Object, object_subclass, ParamSpec, ParamSpecString, ParamSpecBoolean, ParamSpecObject, Value};
 use gtk::subclass::prelude::*;
 use std::cell::RefCell;
 
@@ -7,7 +7,7 @@ use crate::types::TypedListStore;
 
 use super::MenuItemModel;
 
-pub struct MenuItemModelPrivate {
+pub struct MenuItemModelImp {
   pub(super) id: RefCell<String>,
   pub(super) text: RefCell<String>,
   pub(super) icon_name: RefCell<Option<String>>,
@@ -17,7 +17,7 @@ pub struct MenuItemModelPrivate {
   pub(super) submenu: RefCell<TypedListStore<MenuItemModel>>,
 }
 
-impl Default for MenuItemModelPrivate {
+impl Default for MenuItemModelImp {
   fn default() -> Self {
     Self {
       id: RefCell::new(String::new()),
@@ -32,13 +32,13 @@ impl Default for MenuItemModelPrivate {
 }
 
 #[object_subclass]
-impl ObjectSubclass for MenuItemModelPrivate {
+impl ObjectSubclass for MenuItemModelImp {
   const NAME: &'static str = "MenuItemModel";
   type Type = MenuItemModel;
   type ParentType = Object;
 }
 
-impl ObjectImpl for MenuItemModelPrivate {
+impl ObjectImpl for MenuItemModelImp {
   fn properties() -> &'static [ParamSpec] {
     use std::sync::OnceLock;
     static PROPERTIES: OnceLock<Vec<ParamSpec>> = OnceLock::new();
@@ -66,7 +66,7 @@ impl ObjectImpl for MenuItemModelPrivate {
       "submenu" => {
         let typed_store = self.submenu.borrow();
         typed_store.as_list_store().to_value()
-      },
+      }
       _ => unimplemented!(),
     }
   }

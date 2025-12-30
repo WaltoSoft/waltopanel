@@ -1,11 +1,10 @@
 use gtk::{glib, gio::ListStore, prelude::*};
 
 use crate::types::TypedListStore;
-
-use super::imp::MenuItemModelPrivate;
+use super::imp::MenuItemModelImp;
 
 glib::wrapper! {
-  pub struct MenuItemModel(ObjectSubclass<MenuItemModelPrivate>);
+  pub struct MenuItemModel(ObjectSubclass<MenuItemModelImp>);
 }
 
 impl MenuItemModel {
@@ -13,9 +12,8 @@ impl MenuItemModel {
     let obj: Self = glib::Object::builder()
       .property("id", id)
       .property("text", text)
+      .property("submenu", ListStore::new::<MenuItemModel>())
       .build();
-
-      obj.set_property("submenu", ListStore::new::<MenuItemModel>());
     obj
   }
 

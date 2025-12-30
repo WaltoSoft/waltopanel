@@ -15,18 +15,16 @@ use uuid::Uuid;
 use crate::models::MenuItemModel;
 use crate::traits::CompositeWidget;
 use crate::types::TypedListStore;
-
 use super::PanelButton;
 use super::components::Button;
 use super::components::Menu;
-
 
 pub struct PanelButtonImp {
   pub id: Uuid,
   text: RefCell<String>,
   icon_name: RefCell<Option<String>>,
-  button: OnceCell::<Button>,
-  menu: OnceCell::<Menu>
+  button: OnceCell<Button>,
+  menu: OnceCell<Menu>,
 }
 
 impl Default for PanelButtonImp {
@@ -36,7 +34,7 @@ impl Default for PanelButtonImp {
       text: RefCell::new(String::new()),
       icon_name: RefCell::new(None),
       button: OnceCell::new(),
-      menu: OnceCell::new()
+      menu: OnceCell::new(),
     }
   }
 }
@@ -64,7 +62,6 @@ impl ObjectImpl for PanelButtonImp {
   }
 
   fn properties() -> &'static [ParamSpec] {
-    use std::sync::OnceLock;
     static PROPERTIES: OnceLock<Vec<ParamSpec>> = OnceLock::new();
     PROPERTIES.get_or_init(|| {
       vec![
@@ -105,7 +102,7 @@ impl ObjectImpl for PanelButtonImp {
           let list_store: ListStore = value.get().expect("type checked upstream");
           let typed_store: TypedListStore<MenuItemModel> = TypedListStore::from_list_store(list_store);
           
-          if let Some(menu)= self.menu.get() {
+          if let Some(menu) = self.menu.get() {
             menu.set_menu(typed_store);
           }
       }
@@ -187,4 +184,3 @@ impl PanelButtonImp {
     })
   }
 }
-
