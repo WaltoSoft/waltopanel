@@ -1,8 +1,8 @@
 use gtk::{Box, Grid, Label, Orientation, Widget};
-use gtk::{Align, glib::object::Cast, GestureClick, prelude::{BoxExt, GridExt, WidgetExt}};
+use gtk::{Align, glib::object::Cast, GestureClick};
+use gtk::prelude::{BoxExt, GridExt, WidgetExt};
 
-use crate::helpers::ui_helpers;
-use crate::traits::CompositeWidget; 
+use crate::traits::{CompositeWidget, WidgetExtensions}; 
 
 #[derive(Clone, Debug)]
 pub struct BackButton {
@@ -11,25 +11,25 @@ pub struct BackButton {
 }
 
 impl BackButton {
-  pub fn new(text: String) -> Self{
-    let icon_size = 16;
-    let column_spacing = 12;
+  pub fn new(text: impl Into<String>) -> Self {
+    const ICON_SIZE: i32 = 16;
+    const COLUMN_SPACING: i32 = 12;
 
     let container = Box::builder()
       .orientation(Orientation::Horizontal)
-      .css_classes(vec!["back-button".to_string()])
+      .css_classes(vec!["back-button"])
       .build();
     
     let content_grid = Grid::builder()
-      .column_spacing(column_spacing)
+      .column_spacing(COLUMN_SPACING)
       .build();
     
-    let back_icon_widget = ui_helpers::create_icon_widget(
-      Some("go-previous-symbolic".to_string()), 
-      icon_size);
+    let back_icon_widget = Widget::create_icon_widget(
+      Some("go-previous-symbolic"), 
+      ICON_SIZE);
 
     let label = Label::builder()
-      .label(text)
+      .label(text.into())
       .halign(Align::Start)
       .hexpand(true)
       .build();

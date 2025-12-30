@@ -1,36 +1,36 @@
 use gtk::glib::object::Cast;
-use gtk::prelude::{BoxExt, WidgetExt};
+use gtk::prelude::{BoxExt, GridExt, WidgetExt};
 use gtk::{Box, GestureClick, Grid, Label, Widget}; 
-use gtk::{Align, Orientation, prelude::GridExt};
+use gtk::{Align, Orientation};
 
 use crate::models::MenuItemModel;
-use crate::helpers::ui_helpers;
-use crate::traits::CompositeWidget;
+use crate::traits::{CompositeWidget, WidgetExtensions};
 
 #[derive(Clone, Debug)]
 pub struct MenuItem {
   container: Box,
   model: MenuItemModel,
-  click_gesture: GestureClick
+  click_gesture: GestureClick,
 }
 
 impl MenuItem {
   pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool, menu_is_submenu: bool) -> Self {
+    const ICON_SIZE: i32 = 16;
+    const COLUMN_SPACING: i32 = 12;
+
     let mut col = 0;
-    let icon_size = 16;
-    let column_spacing = 12;
 
     let container = 
       Box::builder()
         .orientation(Orientation::Horizontal)
-        .css_classes(vec!["menu-item".to_string()])
+        .css_classes(vec!["menu-item"])
         .focus_on_click(true)
         .can_focus(true)
         .focusable(true)
         .build();
 
     let content_grid = Grid::builder()
-      .column_spacing(column_spacing)
+      .column_spacing(COLUMN_SPACING)
       .build();
 
     let label = Label::builder()
@@ -40,18 +40,18 @@ impl MenuItem {
       .valign(Align::Center)
       .build();    
 
-    let icon_widget = ui_helpers::create_icon_widget(
+    let icon_widget = Widget::create_icon_widget(
       model.icon_name(), 
-      icon_size);
+      ICON_SIZE);
 
     let toggled_icon = if menu_has_toggable_items && model.toggled() {
-      Some("object-select-symbolic".to_string())
+      Some("object-select-symbolic")
     } else {
       None
     };
 
     if menu_has_toggable_items {
-      let toggled_icon_widget = ui_helpers::create_icon_widget(toggled_icon, icon_size);  
+      let toggled_icon_widget = Widget::create_icon_widget(toggled_icon, ICON_SIZE);
       content_grid.attach(&toggled_icon_widget, col, 0, 1, 1);
       col += 1;
     }
@@ -62,7 +62,7 @@ impl MenuItem {
     }
 
     if ! menu_has_icons && ! menu_has_toggable_items && menu_is_submenu {
-      let blank_icon_widget = ui_helpers::create_icon_widget(None, icon_size);
+      let blank_icon_widget = Widget::create_icon_widget(None::<String>, ICON_SIZE);
       content_grid.attach(&blank_icon_widget, col, 0, 1, 1);
       col += 1;
     }
@@ -71,9 +71,8 @@ impl MenuItem {
     col += 1;
 
     if model.has_submenu() {
-      let sub_menu_icon = Some("go-next-symbolic".to_string());
-      let arrow_icon_widget = ui_helpers::create_icon_widget(sub_menu_icon,icon_size);
-      content_grid.attach(&arrow_icon_widget, col, 0, 1,1);
+      let arrow_icon_widget = Widget::create_icon_widget(Some("go-next-symbolic"), ICON_SIZE);
+      content_grid.attach(&arrow_icon_widget, col, 0, 1, 1);
     } 
 
     let click_gesture = GestureClick::new();
@@ -84,7 +83,7 @@ impl MenuItem {
     Self {
       container,
       model,
-      click_gesture
+      click_gesture,
     }
   }
 
@@ -97,7 +96,6 @@ impl MenuItem {
     self.click_gesture.connect_released(move |_, _, _, _| {
       callback(&model);
     });    
-
   }   
 }
 

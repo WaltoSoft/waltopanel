@@ -1,18 +1,20 @@
 use gtk::{Box, Image, Label, Widget};
-use gtk::{GestureClick, glib::object::{Cast, IsA, ObjectExt}, prelude::{BoxExt, WidgetExt}};
+use gtk::{GestureClick, Orientation};
+use gtk::glib::object::{Cast, IsA, ObjectExt};
+use gtk::prelude::{BoxExt, WidgetExt};
 
 use crate::traits::CompositeWidget;
 
 #[derive(Clone, Debug)]
 pub struct Button {
   container: Box,
-  click_gesture: GestureClick
+  click_gesture: GestureClick,
 }
 
 impl Button {
   pub fn new(parent: &impl IsA<Widget>) -> Self {
     let container = Box::builder()
-      .orientation(gtk::Orientation::Horizontal)
+      .orientation(Orientation::Horizontal)
       .spacing(10)
       .build();
 
@@ -31,11 +33,11 @@ impl Button {
 
     Self {
       container,
-      click_gesture
+      click_gesture,
     }
   }
 
-  pub fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
+  pub fn measure(&self, orientation: Orientation, for_size: i32) -> (i32, i32, i32, i32) {
     self.container.measure(orientation, for_size)
   } 
 
