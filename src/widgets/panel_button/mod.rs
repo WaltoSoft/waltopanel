@@ -1,5 +1,7 @@
-mod panel_button_api;
-mod panel_button_imp;
+mod api;
+mod builder;
+mod imp;
 mod components;
 
-pub use panel_button_api::PanelButton;
+pub use api::PanelButton;
+pub use builder::PanelButtonBuilder;

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use std::cell::RefCell;
 
 use crate::{models::MenuItemModel, types::TypedListStore};
-use super::panel_button_imp::PanelButtonImp;
+use super::imp::PanelButtonImp;
 
 glib::wrapper! {
   pub struct PanelButton(ObjectSubclass<PanelButtonImp>)
@@ -52,6 +52,18 @@ impl PanelButton {
 
   pub fn id(&self) -> uuid::Uuid {
     self.imp().id
+  }
+
+  pub fn connect_menu_item_clicked<F>(&self, f: F) -> glib::SignalHandlerId
+  where
+    F: Fn(&Self, &MenuItemModel) + 'static,
+  {
+    self.connect_local("menu-item-clicked", false, move |values| {
+      let panel_button = values[0].get::<Self>().unwrap();
+      let model = values[1].get::<MenuItemModel>().unwrap();
+      f(&panel_button, &model);
+      None
+    })
   }
 }
 

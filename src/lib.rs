@@ -1,7 +1,9 @@
 pub mod app;
 mod curtain_bar;
 mod models;
+mod panel_buttons;
 mod traits;
 mod types;
 mod widgets;
+mod config;
 

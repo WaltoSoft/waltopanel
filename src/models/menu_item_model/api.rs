@@ -78,26 +78,4 @@ impl MenuItemModel {
     let submenu = self.submenu();
     !submenu.is_empty()
   }
-
-  pub fn with_icon(self, icon: &str) -> Self {
-    self.set_icon_name(Some(icon));
-    self
-  }
-
-  pub fn with_separator_after(self) -> Self {
-    self.set_separator_after(true);
-    self
-  }
-
-  pub fn with_toggle(self) -> Self {
-    self.set_allow_toggle(true);
-    self
-  }
-
-  pub fn toggled_on(self) -> Self {
-    self.set_toggled(true);
-    self.set_allow_toggle(true);
-    self
-  }
-
 }

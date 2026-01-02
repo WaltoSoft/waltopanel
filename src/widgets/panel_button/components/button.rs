@@ -18,11 +18,25 @@ impl Button {
       .spacing(10)
       .build();
 
-    let icon_image = Image::new();
-    let text_label = Label::new(None);
+    let icon_image = Image::builder().visible(false).build();
+    let text_label = Label::builder().visible(false).build();
 
     parent.bind_property("icon-name", &icon_image, "icon-name").build();
     parent.bind_property("text", &text_label, "label").build();
+
+    parent
+      .bind_property("icon-name", &icon_image, "visible")
+      .transform_to(|_, icon_name: Option<String>| {
+        Some(icon_name.is_some())
+      })
+      .build();
+
+    parent
+      .bind_property("text", &text_label, "visible")
+      .transform_to(|_, text: String| {
+        Some(!text.is_empty())
+      })
+      .build();
 
     let click_gesture = GestureClick::new();
 

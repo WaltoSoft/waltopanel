@@ -65,7 +65,6 @@ fn build_panels_for_all_monitors(
       println!("Creating panel for monitor {}: {:?}", i, monitor.model());
       
       let mut panel = create_panel_for_monitor(app, &monitor, i as usize)?;
-      panel.add_sample_menus_for_monitor(i as usize);
       panel.present();
       
       panels.borrow_mut().push(panel);
