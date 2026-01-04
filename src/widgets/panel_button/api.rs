@@ -19,6 +19,11 @@ thread_local! {
 }
 
 impl PanelButton {
+  pub fn new() -> Self {
+    let panel_button: Self = glib::Object::new();
+    panel_button
+  }
+
   pub fn from_icon_name_and_label(icon_name: &str, label: &str) -> Self {
     let panel_button: Self = glib::Object::new();
     panel_button.set_property("icon-name", &icon_name.to_value()); 
@@ -32,14 +37,22 @@ impl PanelButton {
     panel_button
   }
 
-  pub fn from_label(label: &str) -> Self {
+  pub fn from_text(text: &str) -> Self {
     let panel_button: Self = glib::Object::new();
-    panel_button.set_property("text", &label.to_value());
+    panel_button.set_property("text", &text.to_value());
     panel_button
   }
 
   pub fn set_menu(&self, menu: TypedListStore<MenuItemModel>) {
     self.set_property("menu", menu.as_list_store());
+  }
+
+  pub fn set_icon_name(&self, icon_name: &str) {
+    self.set_property("icon-name", &icon_name.to_value());
+  }
+
+  pub fn set_text(&self, text: &str) {
+    self.set_property("text", &text.to_value());
   }
 
   pub fn show_menu(&self) {
@@ -53,6 +66,7 @@ impl PanelButton {
   pub fn id(&self) -> uuid::Uuid {
     self.imp().id
   }
+
 
   pub fn connect_menu_item_clicked<F>(&self, f: F) -> glib::SignalHandlerId
   where

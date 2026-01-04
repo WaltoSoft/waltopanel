@@ -83,6 +83,9 @@ impl CurtainBar {
     let system_close_button = crate::panel_buttons::SystemButton::new();
     right_box.append(&system_close_button.widget());
 
+    let battery_button = crate::panel_buttons::BatteryButton::new();
+    right_box.append(&battery_button.widget());
+
     panel_box
   }
 
