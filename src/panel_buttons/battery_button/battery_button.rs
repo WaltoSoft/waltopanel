@@ -14,6 +14,8 @@ impl BatteryButton {
     let metrics = BatteryService::start();
     let panel_button = PanelButton::new();
 
+    panel_button.add_css_class("panelbutton-rotated");
+
     Self::update_ui(&panel_button, metrics);
 
     let panel_button_clone = panel_button.clone();
@@ -31,39 +33,33 @@ impl BatteryButton {
   fn update_ui(panel_button: &PanelButton, metrics: BatteryMetrics) {
     let icon_name = Self::get_battery_icon(metrics.percentage, metrics.plugged_in);
     panel_button.set_icon_name(&icon_name);
-    panel_button.set_tooltip_text(Some(&format!("{}%", metrics.percentage)));
+    panel_button.set_tooltip_text(Some(&format!(
+      "Battery: {}%\n{}",
+      metrics.percentage,
+      metrics.estimated_time.unwrap_or("".to_string())
+    )));
   }
 
   fn get_battery_icon(percentage: u8, plugged_in: bool) -> String {
     if plugged_in {
-      // Charging icons
+      // Charging icons using descriptive names
       match percentage {
-        0..=10 => "battery-level-0-charging-symbolic",
-        11..=20 => "battery-level-10-charging-symbolic",
-        21..=30 => "battery-level-20-charging-symbolic",
-        31..=40 => "battery-level-30-charging-symbolic",
-        41..=50 => "battery-level-40-charging-symbolic",
-        51..=60 => "battery-level-50-charging-symbolic",
-        61..=70 => "battery-level-60-charging-symbolic",
-        71..=80 => "battery-level-70-charging-symbolic",
-        81..=90 => "battery-level-80-charging-symbolic",
-        91..=99 => "battery-level-90-charging-symbolic",
-        100 => "battery-level-100-charged-symbolic",
+        0..=10 => "battery-empty-charging-symbolic",
+        11..=20 => "battery-caution-charging-symbolic",
+        21..=40 => "battery-low-charging-symbolic",
+        41..=80 => "battery-good-charging-symbolic",
+        81..=99 => "battery-full-charging-symbolic",
+        100 => "battery-full-charged-symbolic",
         _ => "battery-symbolic",
       }
     } else {
-      // Discharging icons
+      // Discharging icons using descriptive names
       match percentage {
-        0..=10 => "battery-level-0-symbolic",
-        11..=20 => "battery-level-10-symbolic",
-        21..=30 => "battery-level-20-symbolic",
-        31..=40 => "battery-level-30-symbolic",
-        41..=50 => "battery-level-40-symbolic",
-        51..=60 => "battery-level-50-symbolic",
-        61..=70 => "battery-level-60-symbolic",
-        71..=80 => "battery-level-70-symbolic",
-        81..=90 => "battery-level-80-symbolic",
-        91..=100 => "battery-level-100-symbolic",
+        0..=10 => "battery-empty-symbolic",
+        11..=20 => "battery-caution-symbolic",
+        21..=40 => "battery-low-symbolic",
+        41..=80 => "battery-good-symbolic",
+        81..=100 => "battery-full-symbolic",
         _ => "battery-symbolic",
       }
     }.to_string()
