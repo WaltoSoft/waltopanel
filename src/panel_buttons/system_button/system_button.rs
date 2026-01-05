@@ -2,6 +2,7 @@ use gtk::Widget;
 use gtk::glib::object::Cast;
 
 use crate::traits::CompositeWidget;
+use crate::util::process;
 use crate::widgets::PanelButton;
 use crate::models::MenuBuilder;
 
@@ -26,22 +27,22 @@ impl SystemButton {
     panel_button.connect_menu_item_clicked(move |_, menu_item| {
       match menu_item.id().as_str() {
         "lock" => {
-          let _ = std::process::Command::new("loginctl").arg("lock-session").spawn();
+          process::spawn_detached("loginctl lock-session");
         }
         "logout" => {
-          let _ = std::process::Command::new("gnome-session-quit").arg("--logout").arg("--no-prompt").spawn();
+          process::spawn_detached("gnome-session-quit --logout --no-prompt");
         }
         "restart" => {
-          let _ = std::process::Command::new("systemctl").arg("reboot").spawn();
+          process::spawn_detached("systemctl reboot");
         }
         "shutdown" => {
-          let _ = std::process::Command::new("systemctl").arg("poweroff").spawn();
+          process::spawn_detached("systemctl poweroff");
         }
         "suspend" => {
-          let _ = std::process::Command::new("systemctl").arg("suspend").spawn();
+          process::spawn_detached("systemctl suspend");
         }
         "hibernate" => {
-          let _ = std::process::Command::new("systemctl").arg("hibernate").spawn();
+          process::spawn_detached("systemctl hibernate");
         }
         _ => {}
       }

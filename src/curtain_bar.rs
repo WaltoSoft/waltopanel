@@ -79,6 +79,11 @@ impl CurtainBar {
     panel_box.append(&center_box);
     panel_box.append(&right_box);
 
+    let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("system-run-symbolic", "pkill rofi || rofi -show drun");
+    let launch_widget = launch_button.widget();
+    left_box.append(&launch_widget);
+    std::mem::forget(launch_button);
+
 
     let system_close_button = crate::panel_buttons::SystemButton::new();
     right_box.append(&system_close_button.widget());

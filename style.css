@@ -54,3 +54,7 @@ window {
   margin-bottom: 4px;
   padding-bottom: 4px;
 }
+
+.panelbutton-rotated image {
+  -gtk-icon-transform: rotate(90deg);
+}

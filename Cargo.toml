@@ -10,3 +10,4 @@ adw = { version = "0.7", package = "libadwaita" }
 gtk4-layer-shell = "0.5"
 uuid = { version = "1.19.0", features = ["v4"] }
 indexmap = "2.12.1"
+libc = "0.2.179"

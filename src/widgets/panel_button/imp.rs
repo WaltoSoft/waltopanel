@@ -1,4 +1,4 @@
-use adw::subclass::prelude::{ObjectImpl, ObjectImplExt, ObjectSubclass, ObjectSubclassExt};
+use adw::subclass::prelude::{ObjectImpl, ObjectImplExt, ObjectSubclass, ObjectSubclassExt, ObjectSubclassIsExt};
 use gtk::gio::ListStore;
 use gtk::glib::object::ObjectExt;
 use gtk::glib::subclass::Signal;
@@ -101,7 +101,12 @@ impl ObjectImpl for PanelButtonImp {
       "menu" => {
           let list_store: ListStore = value.get().expect("type checked upstream");
           let typed_store: TypedListStore<MenuItemModel> = TypedListStore::from_list_store(list_store);
-          
+
+          // Create menu if it doesn't exist yet
+          if self.menu.get().is_none() {
+            self.create_menu();
+          }
+
           if let Some(menu) = self.menu.get() {
             menu.set_menu(typed_store);
           }
@@ -131,11 +136,30 @@ impl PanelButtonImp {
   fn initialize(&self) {
     let obj = self.obj();
     let button = Button::new(&*obj);
-    let menu = Menu::new(&obj);
 
     obj.add_css_class("panelbutton");
 
-    menu.set_parent(&button);
+    button.connect_clicked(glib::clone!(@weak obj => move || {
+      let imp = obj.imp();
+      if let Some(menu) = imp.menu.get() {
+        menu.toggle_visibility();
+      } else {
+        obj.emit_by_name::<()>("button-clicked", &[]);
+      }
+    }));
+
+    self.button.set(button.clone()).expect("Failed to set button");
+
+    PanelButton::register_instance(&*obj);
+  }
+
+  fn create_menu(&self) {
+    let obj = self.obj();
+    let menu = Menu::new(&obj);
+
+    if let Some(button) = self.button.get() {
+      menu.set_parent(button);
+    }
 
     let obj_clone = obj.clone();
     menu.connect_menu_clicked(move |model| {
@@ -143,15 +167,16 @@ impl PanelButtonImp {
       obj_clone.emit_by_name::<()>("menu-item-clicked", &[&model]);
     });
 
+/*
     let menu_clone = menu.clone();
-    button.connect_clicked(move || {
-      menu_clone.toggle_visibility();
-    });
+    if let Some(button) = self.button.get() {
+      button.connect_clicked(move || {
+        menu_clone.toggle_visibility();
+      });
+    }
+*/
 
-    self.button.set(button.clone()).expect("Failed to set button");
-    self.menu.set(menu.clone()).expect("Failed to set menu");
-  
-    PanelButton::register_instance(&*obj);
+    self.menu.set(menu).expect("Failed to set menu");
   }
 
   fn finalize(&self) {
@@ -177,6 +202,8 @@ impl PanelButtonImp {
     static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
     SIGNALS.get_or_init(|| {
       vec![
+        Signal::builder("button-clicked")
+          .build(),
         Signal::builder("menu-item-clicked")
           .param_types([MenuItemModel::static_type()])
           .build(),

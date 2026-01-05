@@ -67,6 +67,17 @@ impl PanelButton {
     self.imp().id
   }
 
+  pub fn connect_button_clicked<F>(&self, f: F) -> glib::SignalHandlerId
+  where
+    F: Fn(&Self) + 'static,
+  {
+    self.connect_local("button-clicked", false, move |values| {
+      let panel_button = values[0].get::<Self>().unwrap();
+      f(&panel_button);
+      None
+    })
+  }
+
 
   pub fn connect_menu_item_clicked<F>(&self, f: F) -> glib::SignalHandlerId
   where
