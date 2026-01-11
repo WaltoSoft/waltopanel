@@ -65,6 +65,10 @@ impl PanelButton {
     self.set_property("custom-widget", &widget.to_value());
   }
 
+  pub fn set_dropdown_widget(&self, widget: Option<&gtk::Widget>) {
+    self.set_property("dropdown-widget", &widget.to_value());
+  }
+
   pub fn show_menu(&self) {
     self.imp().show_menu();
   }

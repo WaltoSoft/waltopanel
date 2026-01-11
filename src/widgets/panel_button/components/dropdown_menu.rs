@@ -10,11 +10,11 @@ use crate::widgets::PanelButton;
 use crate::models::MenuItemModel;
 use crate::traits::{CompositeWidget, ListBoxExtensions, PopoverExtensions, WidgetExtensions};
 use crate::types::TypedListStore;
-use super::menu_item::MenuItem;
+use super::dropdown_menu_item::DropdownMenuItem;
 use super::back_button::BackButton;
 
 #[derive(Clone)]
-pub struct Menu {
+pub struct DropdownMenu {
   parent_panel_button: PanelButton,
   container: Popover,
   menu_data: Rc<OnceCell<TypedListStore<MenuItemModel>>>,
@@ -25,7 +25,7 @@ pub struct Menu {
 }
 
 // Public API--------------------------------------------------------------------------------------
-impl Menu {
+impl DropdownMenu {
   pub fn new(parent: &PanelButton) -> Self {
     let popover = Popover::builder()
       .autohide(true)
@@ -83,7 +83,7 @@ impl Menu {
 // End Public API----------------------------------------------------------------------------------
 
 // Behavior Methods--------------------------------------------------------------------------------
-impl Menu {
+impl DropdownMenu {
   fn reset_menu(&self) {
     if let Some(menu_data) = self.menu_data.get() {
       *self.current_menu.borrow_mut() = menu_data.clone();
@@ -187,7 +187,7 @@ impl Menu {
 // End Behavior Methods----------------------------------------------------------------------------
 
 // Helper Methods----------------------------------------------------------------------------------
-impl Menu {
+impl DropdownMenu {
   fn current_menu(&self) -> TypedListStore<MenuItemModel> {
     self.current_menu.borrow().clone()
   }
@@ -248,7 +248,7 @@ impl Menu {
     let menu_item_row = ListBoxRow::new();
     let menu_clone = self.clone();
     let model_clone = model.clone();
-    let menu_item = MenuItem::new(
+    let menu_item = DropdownMenuItem::new(
       model_clone, 
       self.has_toggable_items(), 
       self.has_icons(), 
@@ -268,7 +268,7 @@ impl Menu {
 // End Helper Methods------------------------------------------------------------------------------
 
 // Event Handler Methods---------------------------------------------------------------------------
-impl Menu {
+impl DropdownMenu {
   fn handle_key_press(&self, keyval: Key) -> Propagation {
     let Some(selected_row) = self.get_selected_menu_item_row() else {
       return Propagation::Proceed;
@@ -335,13 +335,13 @@ impl Menu {
 }
 // End Event Handler Methods-----------------------------------------------------------------------
 
-impl CompositeWidget for Menu {
+impl CompositeWidget for DropdownMenu {
   fn widget(&self) -> Widget {
     self.container.clone().upcast()
   }
 }
 
-impl std::fmt::Debug for Menu {
+impl std::fmt::Debug for DropdownMenu {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Menu")
       .field("parent_panel_button", &self.parent_panel_button)

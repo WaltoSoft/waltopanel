@@ -17,15 +17,18 @@ use crate::traits::CompositeWidget;
 use crate::types::TypedListStore;
 use super::PanelButton;
 use super::components::Button;
-use super::components::Menu;
+use super::components::DropdownComponent;
+use super::components::DropdownMenu;
 
 pub struct PanelButtonImp {
   pub id: Uuid,
   text: RefCell<String>,
   icon_name: RefCell<Option<String>>,
   custom_widget: RefCell<Option<Widget>>,
+  dropdown_widget: RefCell<Option<Widget>>,
   button: OnceCell<Button>,
-  menu: OnceCell<Menu>,
+  menu: OnceCell<DropdownMenu>,
+  dropdown_component: OnceCell<DropdownComponent>,
 }
 
 impl Default for PanelButtonImp {
@@ -35,8 +38,10 @@ impl Default for PanelButtonImp {
       text: RefCell::new(String::new()),
       icon_name: RefCell::new(None),
       custom_widget: RefCell::new(None),
+      dropdown_widget: RefCell::new(None),
       button: OnceCell::new(),
       menu: OnceCell::new(),
+      dropdown_component: OnceCell::new(),
     }
   }
 }
@@ -70,9 +75,10 @@ impl ObjectImpl for PanelButtonImp {
         ParamSpecString::builder("text").build(),
         ParamSpecString::builder("icon-name").build(),
         ParamSpecObject::builder::<Widget>("custom-widget").build(),
+        ParamSpecObject::builder::<Widget>("dropdown-widget").build(),
         ParamSpecObject::builder::<ListStore>("menu").build(),
       ]
-    })  
+    })
   }
 
   fn property(&self, _id: usize, pspec: &ParamSpec) -> Value {
@@ -80,6 +86,7 @@ impl ObjectImpl for PanelButtonImp {
       "text" => self.text.borrow().to_value(),
       "icon-name" => self.icon_name.borrow().to_value(),
       "custom-widget" => self.custom_widget.borrow().to_value(),
+      "dropdown-widget" => self.dropdown_widget.borrow().to_value(),
       "menu" => {
         // Return an empty ListStore since menu is write-only
         ListStore::new::<MenuItemModel>().to_value()
@@ -105,6 +112,20 @@ impl ObjectImpl for PanelButtonImp {
       "custom-widget" => {
           let widget: Option<Widget> = value.get().expect("type checked upstream");
           self.custom_widget.replace(widget.clone());
+      }
+      "dropdown-widget" => {
+          let widget: Option<Widget> = value.get().expect("type checked upstream");
+          self.dropdown_widget.replace(widget.clone());
+
+          // Create dropdown component if it doesn't exist yet
+          if self.dropdown_component.get().is_none() {
+            self.create_dropdown_component();
+          }
+
+          // Set the widget in the dropdown component
+          if let Some(dropdown) = self.dropdown_component.get() {
+            dropdown.set_widget(widget.as_ref());
+          }
       }
       "menu" => {
           let list_store: ListStore = value.get().expect("type checked upstream");
@@ -151,6 +172,9 @@ impl PanelButtonImp {
       let imp = obj.imp();
       if let Some(menu) = imp.menu.get() {
         menu.toggle_visibility();
+      } else if let Some(dropdown) = imp.dropdown_component.get() {
+        PanelButton::close_other_instances(&obj);
+        dropdown.toggle_visibility();
       } else {
         obj.emit_by_name::<()>("button-clicked", &[]);
       }
@@ -163,7 +187,7 @@ impl PanelButtonImp {
 
   fn create_menu(&self) {
     let obj = self.obj();
-    let menu = Menu::new(&obj);
+    let menu = DropdownMenu::new(&obj);
 
     if let Some(button) = self.button.get() {
       menu.set_parent(button);
@@ -178,6 +202,17 @@ impl PanelButtonImp {
     self.menu.set(menu).expect("Failed to set menu");
   }
 
+  fn create_dropdown_component(&self) {
+    let obj = self.obj();
+    let dropdown = DropdownComponent::new(&obj);
+
+    if let Some(button) = self.button.get() {
+      dropdown.set_parent(button);
+    }
+
+    self.dropdown_component.set(dropdown).expect("Failed to set dropdown component");
+  }
+
   fn finalize(&self) {
     if let Some(button) = self.button.get() {
       button.unparent();
@@ -188,12 +223,18 @@ impl PanelButtonImp {
     if let Some(menu) = self.menu.get() {
       PanelButton::close_other_instances(&self.obj());
       menu.show_menu();
+    } else if let Some(dropdown) = self.dropdown_component.get() {
+      PanelButton::close_other_instances(&self.obj());
+      dropdown.show();
     }
   }
 
   pub fn hide_menu(&self) {
     if let Some(menu) = self.menu.get() {
       menu.hide_menu();
+    }
+    if let Some(dropdown) = self.dropdown_component.get() {
+      dropdown.hide();
     }
   }
 

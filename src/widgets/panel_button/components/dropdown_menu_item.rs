@@ -8,13 +8,13 @@ use crate::models::MenuItemModel;
 use crate::traits::{CompositeWidget, WidgetExtensions};
 
 #[derive(Clone, Debug)]
-pub struct MenuItem {
+pub struct DropdownMenuItem {
   container: Box,
   model: MenuItemModel,
   click_gesture: GestureClick,
 }
 
-impl MenuItem {
+impl DropdownMenuItem {
   pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool, menu_is_submenu: bool) -> Self {
 
     let mut col = 0;
@@ -98,7 +98,7 @@ impl MenuItem {
   }   
 }
 
-impl CompositeWidget for MenuItem {
+impl CompositeWidget for DropdownMenuItem {
   fn widget(&self) -> Widget {
     self.container.clone().upcast()
   }
