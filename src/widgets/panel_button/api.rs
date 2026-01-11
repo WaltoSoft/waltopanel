@@ -43,6 +43,12 @@ impl PanelButton {
     panel_button
   }
 
+  pub fn from_custom_widget(widget: &gtk::Widget) -> Self {
+    let panel_button: Self = glib::Object::new();
+    panel_button.set_property("custom-widget", &Some(widget).to_value());
+    panel_button
+  }
+
   pub fn set_menu(&self, menu: TypedListStore<MenuItemModel>) {
     self.set_property("menu", menu.as_list_store());
   }
@@ -53,6 +59,10 @@ impl PanelButton {
 
   pub fn set_text(&self, text: &str) {
     self.set_property("text", &text.to_value());
+  }
+
+  pub fn set_custom_widget(&self, widget: Option<&gtk::Widget>) {
+    self.set_property("custom-widget", &widget.to_value());
   }
 
   pub fn show_menu(&self) {

@@ -1,4 +1,5 @@
 pub mod app;
+mod constants;
 mod curtain_bar;
 mod models;
 mod panel_buttons;

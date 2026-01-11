@@ -3,6 +3,7 @@ use gtk::prelude::{BoxExt, GridExt, WidgetExt};
 use gtk::{Box, GestureClick, Grid, Label, Widget}; 
 use gtk::{Align, Orientation};
 
+use crate::constants::{ICON_SIZE, PANEL_BUTTON_MENU_ITEM_SPACING};
 use crate::models::MenuItemModel;
 use crate::traits::{CompositeWidget, WidgetExtensions};
 
@@ -15,8 +16,6 @@ pub struct MenuItem {
 
 impl MenuItem {
   pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool, menu_is_submenu: bool) -> Self {
-    const ICON_SIZE: i32 = 16;
-    const COLUMN_SPACING: i32 = 12;
 
     let mut col = 0;
 
@@ -30,7 +29,7 @@ impl MenuItem {
         .build();
 
     let content_grid = Grid::builder()
-      .column_spacing(COLUMN_SPACING)
+      .column_spacing(PANEL_BUTTON_MENU_ITEM_SPACING)
       .build();
 
     let label = Label::builder()

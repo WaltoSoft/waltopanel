@@ -23,6 +23,7 @@ pub struct PanelButtonImp {
   pub id: Uuid,
   text: RefCell<String>,
   icon_name: RefCell<Option<String>>,
+  custom_widget: RefCell<Option<Widget>>,
   button: OnceCell<Button>,
   menu: OnceCell<Menu>,
 }
@@ -33,6 +34,7 @@ impl Default for PanelButtonImp {
       id: Uuid::new_v4(),
       text: RefCell::new(String::new()),
       icon_name: RefCell::new(None),
+      custom_widget: RefCell::new(None),
       button: OnceCell::new(),
       menu: OnceCell::new(),
     }
@@ -47,7 +49,7 @@ impl ObjectSubclass for PanelButtonImp {
 
   fn class_init(klass: &mut Self::Class) {
     klass.set_layout_manager_type::<BinLayout>();
-    klass.set_css_name("button");
+    klass.set_css_name("panelbutton");
   }
 }
 
@@ -67,6 +69,7 @@ impl ObjectImpl for PanelButtonImp {
       vec![
         ParamSpecString::builder("text").build(),
         ParamSpecString::builder("icon-name").build(),
+        ParamSpecObject::builder::<Widget>("custom-widget").build(),
         ParamSpecObject::builder::<ListStore>("menu").build(),
       ]
     })  
@@ -76,6 +79,7 @@ impl ObjectImpl for PanelButtonImp {
     match pspec.name() {
       "text" => self.text.borrow().to_value(),
       "icon-name" => self.icon_name.borrow().to_value(),
+      "custom-widget" => self.custom_widget.borrow().to_value(),
       "menu" => {
         // Return an empty ListStore since menu is write-only
         ListStore::new::<MenuItemModel>().to_value()
@@ -97,6 +101,10 @@ impl ObjectImpl for PanelButtonImp {
       "icon-name" => {
           let icon_name = value.get().expect("type checked upstream");
           self.icon_name.replace(icon_name);
+      }
+      "custom-widget" => {
+          let widget: Option<Widget> = value.get().expect("type checked upstream");
+          self.custom_widget.replace(widget.clone());
       }
       "menu" => {
           let list_store: ListStore = value.get().expect("type checked upstream");
@@ -166,15 +174,6 @@ impl PanelButtonImp {
       println!("Menu item clicked: {}", model.text());
       obj_clone.emit_by_name::<()>("menu-item-clicked", &[&model]);
     });
-
-/*
-    let menu_clone = menu.clone();
-    if let Some(button) = self.button.get() {
-      button.connect_clicked(move || {
-        menu_clone.toggle_visibility();
-      });
-    }
-*/
 
     self.menu.set(menu).expect("Failed to set menu");
   }

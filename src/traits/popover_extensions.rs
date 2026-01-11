@@ -1,4 +1,4 @@
-use gtk::{Align, EventControllerKey, Popover, gdk::{Key, prelude::{DisplayExt, MonitorExt, SurfaceExt}}, gio::prelude::ListModelExt, glib::object::Cast, prelude::{NativeExt, WidgetExt}};
+use gtk::{Align, EventControllerKey, Popover, gdk::{Key, prelude::{DisplayExt, MonitorExt, SurfaceExt}}, gio::prelude::ListModelExt, glib::object::Cast, prelude::{NativeExt, PopoverExt, WidgetExt}};
 
 pub trait PopoverExtensions {
   fn connect_key_pressed<F: 'static + Fn(Key) -> gtk::glib::Propagation>(&self, callback: F);
@@ -42,7 +42,14 @@ impl PopoverExtensions for Popover {
         .unwrap_or((0.0, 0.0));
 
       let button_width = button_menu_box.allocated_width();
-      let menu_width = 200;  // TODO: Magic number needs to be fixed.
+
+      let menu_width = if let Some(child) = self.child() {
+        let (_, width, _, _) = child.measure(gtk::Orientation::Horizontal, -1);
+        width
+      } else {
+        0
+      };
+
       let space_right = monitor_geometry.width() - (button_x as i32 + button_width);
 
       if space_right >= menu_width {

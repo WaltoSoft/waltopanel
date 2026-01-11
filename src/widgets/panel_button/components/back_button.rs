@@ -2,6 +2,7 @@ use gtk::{Box, Grid, Label, Orientation, Widget};
 use gtk::{Align, glib::object::Cast, GestureClick};
 use gtk::prelude::{BoxExt, GridExt, WidgetExt};
 
+use crate::constants::{ICON_SIZE, PANEL_BUTTON_MENU_ITEM_SPACING};
 use crate::traits::{CompositeWidget, WidgetExtensions}; 
 
 #[derive(Clone, Debug)]
@@ -12,8 +13,6 @@ pub struct BackButton {
 
 impl BackButton {
   pub fn new(text: impl Into<String>) -> Self {
-    const ICON_SIZE: i32 = 16;
-    const COLUMN_SPACING: i32 = 12;
 
     let container = Box::builder()
       .orientation(Orientation::Horizontal)
@@ -21,7 +20,7 @@ impl BackButton {
       .build();
     
     let content_grid = Grid::builder()
-      .column_spacing(COLUMN_SPACING)
+      .column_spacing(PANEL_BUTTON_MENU_ITEM_SPACING)
       .build();
     
     let back_icon_widget = Widget::create_icon_widget(

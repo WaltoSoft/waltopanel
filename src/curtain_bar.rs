@@ -9,6 +9,7 @@ use std::boxed::Box as StdBox;
 use crate::config::{CurtainBarConfig, Margins};
 use crate::traits::ApplicationWindowExtensions;
 use crate::traits::CompositeWidget;
+use crate::widgets::PanelButton;
 
 pub struct CurtainBar {
   pub window: ApplicationWindow,
@@ -28,10 +29,10 @@ impl CurtainBar {
       .title("Curtain Bar")
       .build();
 
-    window.configure_top_layer_shell(config.height);
+    let _ = window.configure_top_layer_shell(config.height);
 
     let panel_box =
-      Self::create_panel_container(config.spacing, &config.margins);
+      Self::create_panel_container(config.button_spacing, &config.margins);
 
     window.set_content(Some(&panel_box));
 
@@ -82,14 +83,19 @@ impl CurtainBar {
     let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("system-run-symbolic", "pkill rofi || rofi -show drun");
     let launch_widget = launch_button.widget();
     left_box.append(&launch_widget);
-    std::mem::forget(launch_button);
 
+
+    let system_metrics_button = crate::panel_buttons::SystemMetricsButton::new();
+    right_box.append(&system_metrics_button.widget());
+
+    let battery_button = crate::panel_buttons::BatteryButton::new();
+    right_box.append(&battery_button.widget());
 
     let system_close_button = crate::panel_buttons::SystemButton::new();
     right_box.append(&system_close_button.widget());
 
-    let battery_button = crate::panel_buttons::BatteryButton::new();
-    right_box.append(&battery_button.widget());
+
+
 
     panel_box
   }

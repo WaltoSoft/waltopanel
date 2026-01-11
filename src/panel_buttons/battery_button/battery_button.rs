@@ -33,11 +33,13 @@ impl BatteryButton {
   fn update_ui(panel_button: &PanelButton, metrics: BatteryMetrics) {
     let icon_name = Self::get_battery_icon(metrics.percentage, metrics.plugged_in);
     panel_button.set_icon_name(&icon_name);
-    panel_button.set_tooltip_text(Some(&format!(
-      "Battery: {}%\n{}",
-      metrics.percentage,
-      metrics.estimated_time.unwrap_or("".to_string())
-    )));
+
+    let tooltip_text = match &metrics.estimated_time {
+      Some(time) => format!("Battery: {}%\n{}", metrics.percentage, time),
+      None => format!("Battery: {}%", metrics.percentage),
+    };
+
+    panel_button.set_tooltip_text(Some(&tooltip_text));
   }
 
   fn get_battery_icon(percentage: u8, plugged_in: bool) -> String {

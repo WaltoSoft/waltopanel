@@ -5,7 +5,7 @@ pub struct CurtainBarConfig {
   pub height: i32,
   pub layer: Layer,
   pub margins: Margins,
-  pub spacing: i32,
+  pub button_spacing: i32,
 }
 
 impl Default for CurtainBarConfig {
@@ -19,7 +19,7 @@ impl Default for CurtainBarConfig {
         left: 8,
         right: 8,
       },
-      spacing: 8,
+      button_spacing: 0,
     }
   }
 }

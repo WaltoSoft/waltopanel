@@ -5,6 +5,7 @@ window {
 .panelbutton {
   border-radius: 0px;
   background-color: var(--window-bg-color);
+  padding: 0px 5px;
 }
 
 .panelbutton:active {
@@ -18,7 +19,6 @@ window {
 
 .panelbutton .menu {
   padding: 2px 0;
-  min-width: 200px;
 }
 
 .panelbutton .menu-item,
