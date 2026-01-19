@@ -1,6 +1,7 @@
 use crate::types::TypedListStore;
 use super::MenuItemModel;
 
+#[derive(Clone)]
 pub struct MenuBuilder {
   items: TypedListStore<MenuItemModel>,
 }
@@ -35,6 +36,7 @@ impl MenuBuilder {
   }
 }
 
+#[derive(Clone)]
 pub struct MenuItemBuilder {
   parent: MenuBuilder,
   item: Option<MenuItemModel>,
@@ -48,8 +50,16 @@ impl MenuItemBuilder {
     self
   }
 
-  pub fn toggle(self) -> Self {
+  pub fn allow_toggle(self) -> Self {
     if let Some(ref item) = self.item {
+      item.set_allow_toggle(true);
+    }
+    self
+  }
+
+  pub fn toggled(self, toggled: bool) -> Self {
+    if let Some(ref item) = self.item {
+      item.set_toggled(toggled);
       item.set_allow_toggle(true);
     }
     self
@@ -70,6 +80,22 @@ impl MenuItemBuilder {
     self
   }
 
+  pub fn disabled(self) -> Self {
+    if let Some(ref item) = self.item {
+      item.set_disabled(true);
+    }
+    self
+  }
+
+  pub fn disabled_if(self, condition: bool) -> Self {
+    if condition {
+      if let Some(ref item) = self.item {
+        item.set_disabled(true);
+      }
+    }
+    self
+  }
+
   pub fn submenu<F>(self, builder_fn: F) -> Self
   where
     F: FnOnce(MenuBuilder) -> TypedListStore<MenuItemModel>,
@@ -84,14 +110,14 @@ impl MenuItemBuilder {
 
   pub fn item(self, id: impl Into<String>, text: impl Into<String>) -> MenuItemBuilder {
     if let Some(item) = self.item {
-      self.parent.items.append(&item);
+      self.parent.items.append(item);
     }
     self.parent.item(id, text)
   }
 
   pub fn item_if(self, condition: bool, id: impl Into<String>, text: impl Into<String>) -> MenuItemBuilder {
     if let Some(item) = self.item {
-      self.parent.items.append(&item);
+      self.parent.items.append(item);
     }
     if condition {
       self.parent.item(id, text)
@@ -105,7 +131,7 @@ impl MenuItemBuilder {
 
   pub fn build(self) -> TypedListStore<MenuItemModel> {
     if let Some(item) = self.item {
-      self.parent.items.append(&item);
+      self.parent.items.append(item);
     }
     self.parent.items
   }

@@ -1,9 +1,9 @@
 use gtk::gdk::Key;
-use gtk::glib::{object::Cast, Propagation};
-use gtk::prelude::{BoxExt, ListBoxRowExt, PopoverExt, WidgetExt};
+use gtk::glib::{object::Cast, Propagation, SignalHandlerId};
+use gtk::prelude::{BoxExt, ListBoxRowExt, ListModelExt, ObjectExt, PopoverExt, WidgetExt};
 use gtk::{Box, ListBox, ListBoxRow,  Popover, Widget};
 use gtk::{Orientation, PositionType, SelectionMode, StateFlags};
-use std::{cell::{OnceCell, RefCell}, rc::Rc};
+use std::{cell::{Cell, OnceCell, RefCell}, rc::Rc};
 use std::boxed::Box as StdBox;
 
 use crate::widgets::PanelButton;
@@ -22,6 +22,8 @@ pub struct DropdownMenu {
   menu_stack: Rc<RefCell<Vec<TypedListStore<MenuItemModel>>>>,
   breadcrumbs: Rc<RefCell<Vec<String>>>,
   menu_clicked_callback: Rc<OnceCell<StdBox<dyn Fn(&MenuItemModel)>>>,
+  items_changed_handler: Rc<Cell<Option<SignalHandlerId>>>,
+  transitioning: Rc<Cell<bool>>,
 }
 
 // Public API--------------------------------------------------------------------------------------
@@ -43,6 +45,8 @@ impl DropdownMenu {
       menu_stack: Rc::new(RefCell::new(Vec::new())),
       breadcrumbs: Rc::new(RefCell::new(Vec::new())),
       menu_clicked_callback: Rc::new(OnceCell::new()),
+      items_changed_handler: Rc::new(Cell::new(None)),
+      transitioning: Rc::new(Cell::new(false)),
     };
 
     menu.setup_popover_handlers();
@@ -66,11 +70,20 @@ impl DropdownMenu {
   }
 
   pub fn toggle_visibility(&self) {
+    // Guard against reentrancy during popover transitions
+    if self.transitioning.get() {
+      return;
+    }
+
+    self.transitioning.set(true);
+
     if self.container.is_visible() {
       self.hide_menu();
     } else {
       self.show_menu();
     }
+
+    self.transitioning.set(false);
   }
 
   pub fn connect_menu_clicked<F>(&self, callback: F)
@@ -86,13 +99,68 @@ impl DropdownMenu {
 impl DropdownMenu {
   fn reset_menu(&self) {
     if let Some(menu_data) = self.menu_data.get() {
-      *self.current_menu.borrow_mut() = menu_data.clone();
+      self.set_current_menu(menu_data.clone());
     }
 
     self.menu_stack.borrow_mut().clear();
     self.breadcrumbs.borrow_mut().clear();
 
     self.rebuild_menu();
+  }
+
+  fn set_current_menu(&self, menu: TypedListStore<MenuItemModel>) {
+    // Disconnect previous handler if any
+    if let Some(handler_id) = self.items_changed_handler.take() {
+      self.current_menu.borrow().as_list_store().disconnect(handler_id);
+    }
+
+    // Set the new current menu
+    *self.current_menu.borrow_mut() = menu.clone();
+
+    // Connect to items_changed on the new menu
+    let menu_clone = self.clone();
+    let handler_id = menu.as_list_store().connect_items_changed(move |_, position, removed, added| {
+      menu_clone.handle_items_changed(position, removed, added);
+    });
+    self.items_changed_handler.set(Some(handler_id));
+  }
+
+  fn handle_items_changed(&self, position: u32, removed: u32, added: u32) {
+    // Skip updates if menu is transitioning or not visible
+    if self.transitioning.get() || !self.container.is_visible() {
+      return;
+    }
+
+    let Some(list_box) = self.widget().get_sub_widget::<ListBox>() else {
+      return;
+    };
+
+    // Adjust position for back button if in submenu
+    let row_offset = if self.in_submenu() { 1 } else { 0 };
+
+    // Remove rows
+    for _ in 0..removed {
+      let row_index = (position as i32) + row_offset;
+      if let Some(row) = list_box.row_at_index(row_index) {
+        list_box.remove(&row);
+      }
+    }
+
+    // Add new rows
+    for i in 0..added {
+      let model_index = position + i;
+      if let Some(model) = self.current_menu().get(model_index) {
+        let menu_item_row = self.build_menu_item_row(&model);
+        let insert_index = (position + i) as i32 + row_offset;
+
+        // Insert at the correct position
+        if list_box.row_at_index(insert_index).is_some() {
+          list_box.insert(&menu_item_row, insert_index);
+        } else {
+          list_box.append(&menu_item_row);
+        }
+      }
+    }
   }
 
   fn rebuild_menu(&self) {
@@ -139,8 +207,8 @@ impl DropdownMenu {
     let current_menu = self.current_menu.borrow().clone();
 
     self.menu_stack.borrow_mut().push(current_menu);
-    self.breadcrumbs.borrow_mut().push(sub_menu_label);    
-    *self.current_menu.borrow_mut() = submenu_items;
+    self.breadcrumbs.borrow_mut().push(sub_menu_label);
+    self.set_current_menu(submenu_items);
 
     self.rebuild_menu();
   }
@@ -152,7 +220,7 @@ impl DropdownMenu {
       drop(stack);
 
       self.breadcrumbs.borrow_mut().pop();
-      *self.current_menu.borrow_mut() = previous_menu;
+      self.set_current_menu(previous_menu);
 
       self.rebuild_menu();
     }
@@ -245,18 +313,23 @@ impl DropdownMenu {
   }
 
   fn build_menu_item_row(&self, model: &MenuItemModel) -> ListBoxRow {
-    let menu_item_row = ListBoxRow::new();
+    let menu_item_row = ListBoxRow::builder()
+      .activatable(!model.disabled())
+      .focusable(!model.disabled())
+      .can_focus(!model.disabled())
+      .build();
+
     let menu_clone = self.clone();
     let model_clone = model.clone();
     let menu_item = DropdownMenuItem::new(
-      model_clone, 
-      self.has_toggable_items(), 
-      self.has_icons(), 
+      model_clone,
+      self.has_toggable_items(),
+      self.has_icons(),
       self.in_submenu());
 
     menu_item.connect_clicked(move |model| menu_clone.take_menu_action(model));
     menu_item_row.set_child(Some(&menu_item.widget()));
-    
+
     if model.separator_after() {
       menu_item_row.add_css_class("has-separator-after");
     }
@@ -298,7 +371,9 @@ impl DropdownMenu {
       self.show_submenu_parent();
     } else {
       if let Some(model) = self.get_menu_model_from_row(&selected_row) {
-        self.take_menu_action(&model);
+        if !model.disabled() {
+          self.take_menu_action(&model);
+        }
       }
     }
   }
@@ -306,10 +381,12 @@ impl DropdownMenu {
   fn handle_row_right_arrow_key_pressed(&self, selected_row: &ListBoxRow) {
     if ! self.is_back_button_row(selected_row) {
       if let Some(model) = self.get_menu_model_from_row(&selected_row) {
-        if model.has_submenu() {
-          self.show_submenu(&model);
-        } else {
-          self.navigate_to_next_panel_button();
+        if !model.disabled() {
+          if model.has_submenu() {
+            self.show_submenu(&model);
+          } else {
+            self.navigate_to_next_panel_button();
+          }
         }
       }
     }

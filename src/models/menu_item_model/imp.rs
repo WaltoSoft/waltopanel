@@ -14,6 +14,7 @@ pub struct MenuItemModelImp {
   pub(super) toggled: RefCell<bool>,
   pub(super) allow_toggle: RefCell<bool>,
   pub(super) separator_after: RefCell<bool>,
+  pub(super) disabled: RefCell<bool>,
   pub(super) submenu: RefCell<TypedListStore<MenuItemModel>>,
 }
 
@@ -26,6 +27,7 @@ impl Default for MenuItemModelImp {
       toggled: RefCell::new(false),
       allow_toggle: RefCell::new(false),
       separator_after: RefCell::new(false),
+      disabled: RefCell::new(false),
       submenu: RefCell::new(TypedListStore::new()),
     }
   }
@@ -50,6 +52,7 @@ impl ObjectImpl for MenuItemModelImp {
         ParamSpecBoolean::builder("toggled").build(),
         ParamSpecBoolean::builder("allow-toggle").build(),
         ParamSpecBoolean::builder("separator-after").build(),
+        ParamSpecBoolean::builder("disabled").build(),
         ParamSpecObject::builder::<ListStore>("submenu").build(),
       ]
     })
@@ -63,6 +66,7 @@ impl ObjectImpl for MenuItemModelImp {
       "toggled" => self.toggled.borrow().to_value(),
       "allow-toggle" => self.allow_toggle.borrow().to_value(),
       "separator-after" => self.separator_after.borrow().to_value(),
+      "disabled" => self.disabled.borrow().to_value(),
       "submenu" => {
         let typed_store = self.submenu.borrow();
         typed_store.as_list_store().to_value()
@@ -96,6 +100,10 @@ impl ObjectImpl for MenuItemModelImp {
       "separator-after" => {
           let separator_after = value.get().expect("type checked upstream");
           self.separator_after.replace(separator_after);
+      }
+      "disabled" => {
+          let disabled = value.get().expect("type checked upstream");
+          self.disabled.replace(disabled);
       }
       "submenu" => {
           let list_store: ListStore = value.get().expect("type checked upstream");

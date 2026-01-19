@@ -64,7 +64,15 @@ impl MenuItemModel {
   pub fn set_separator_after(&self, separator_after: bool) {
     self.set_property("separator-after", separator_after);
   }
-  
+
+  pub fn disabled(&self) -> bool {
+    self.property("disabled")
+  }
+
+  pub fn set_disabled(&self, disabled: bool) {
+    self.set_property("disabled", disabled);
+  }
+
   pub fn submenu(&self) -> TypedListStore<MenuItemModel> {
     let list_store: ListStore = self.property("submenu");
     TypedListStore::from_list_store(list_store)

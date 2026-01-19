@@ -88,6 +88,9 @@ impl CurtainBar {
     let system_metrics_button = crate::panel_buttons::SystemMetricsButton::new();
     right_box.append(&system_metrics_button.widget());
 
+    let network_button = crate::panel_buttons::NetworkButton::new();
+    right_box.append(&network_button.widget());
+
     let sound_button = crate::panel_buttons::SoundButton::new();
     right_box.append(&sound_button.widget());
 

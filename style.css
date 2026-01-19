@@ -45,6 +45,19 @@ window {
   color: var(--accent-fg-color);
 }
 
+.panelbutton .menu-list row:selected .menu-item.disabled {
+  background-color: transparent;
+  color: inherit;
+}
+
+.panelbutton .menu-item.disabled {
+  opacity: 0.5;
+}
+
+.panelbutton .menu-list row:has(.menu-item.disabled) {
+  pointer-events: none;
+}
+
 .panelbutton .menu-list row:focus-visible {
   outline: none;
 }

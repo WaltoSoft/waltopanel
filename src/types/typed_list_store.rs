@@ -26,8 +26,13 @@ impl<T: IsA<glib::Object>> TypedListStore<T> {
     self.inner.item(index)?.downcast().ok()
   }
 
-  pub fn append(&self, item: &T) {
-    self.inner.append(item);
+  pub fn append(&self, item: T) {
+    let end = self.inner.n_items();
+    self.inner.splice(end, 0, &[item.upcast::<glib::Object>()]);
+  }
+
+  pub fn insert(&self, index: u32, item: &T) {
+    self.inner.splice(index, 0, &[item.clone().upcast::<glib::Object>()]);
   }
 
   pub fn remove(&self, index: u32) {
@@ -94,3 +99,4 @@ impl<'a, T: IsA<glib::Object>> IntoIterator for &'a TypedListStore<T> {
     self.iter()
   }
 }
+

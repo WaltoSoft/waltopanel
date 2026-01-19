@@ -53,6 +53,10 @@ impl PanelButton {
     self.set_property("menu", menu.as_list_store());
   }
 
+  pub fn icon_name(&self) -> Option<String> {
+    self.property::<Option<String>>("icon-name")
+  }
+
   pub fn set_icon_name(&self, icon_name: &str) {
     self.set_property("icon-name", &icon_name.to_value());
   }

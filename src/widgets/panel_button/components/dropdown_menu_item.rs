@@ -1,9 +1,10 @@
-use gtk::glib::object::Cast;
-use gtk::prelude::{BoxExt, GridExt, WidgetExt};
-use gtk::{Box, GestureClick, Grid, Label, Widget}; 
+use gtk::glib::{self, closure,object::{Cast, ObjectExt}};
+use gtk::prelude::{BoxExt, GObjectPropertyExpressionExt, GridExt, ListModelExt, WidgetExt};
+use gtk::{Box, ClosureExpression, GestureClick, Grid, Label, Widget};
 use gtk::{Align, Orientation};
+use gtk::gio::ListStore;
 
-use crate::constants::{ICON_SIZE, PANEL_BUTTON_MENU_ITEM_SPACING};
+use crate::{constants::{ICON_SIZE, PANEL_BUTTON_MENU_ITEM_SPACING}, types::TypedListStore, widgets::OptionalImage};
 use crate::models::MenuItemModel;
 use crate::traits::{CompositeWidget, WidgetExtensions};
 
@@ -16,16 +17,21 @@ pub struct DropdownMenuItem {
 
 impl DropdownMenuItem {
   pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool, menu_is_submenu: bool) -> Self {
-
     let mut col = 0;
 
-    let container = 
+    let mut css_classes = vec!["menu-item"];
+    if model.disabled() {
+      css_classes.push("disabled");
+    }
+
+    let container =
       Box::builder()
         .orientation(Orientation::Horizontal)
-        .css_classes(vec!["menu-item"])
-        .focus_on_click(true)
-        .can_focus(true)
-        .focusable(true)
+        .css_classes(css_classes)
+        .focus_on_click(!model.disabled())
+        .can_focus(!model.disabled())
+        .focusable(!model.disabled())
+        .sensitive(!model.disabled())
         .build();
 
     let content_grid = Grid::builder()
@@ -33,58 +39,83 @@ impl DropdownMenuItem {
       .build();
 
     let label = Label::builder()
-      .label(model.text())
       .halign(Align::Start)
       .hexpand(true)
       .valign(Align::Center)
-      .build();    
+      .label(&model.text())
+      .build();
 
-    let icon_widget = Widget::create_icon_widget(
-      model.icon_name(), 
-      ICON_SIZE);
+    let icon_name = DropdownMenuItem::get_icon_name(model.allow_toggle(), model.toggled(), model.icon_name());
+    let icon_image = OptionalImage::new(icon_name.as_deref(), ICON_SIZE);
+    let submenu_icon_name = DropdownMenuItem::get_submenu_icon_name(model.submenu().count());
+    let submenu_icon_image = OptionalImage::new(submenu_icon_name.as_deref(), ICON_SIZE);
 
-    let toggled_icon = if menu_has_toggable_items && model.toggled() {
-      Some("object-select-symbolic")
-    } else {
-      None
-    };
+    model.bind_property("text", &label, "label").build();
 
-    if menu_has_toggable_items {
-      let toggled_icon_widget = Widget::create_icon_widget(toggled_icon, ICON_SIZE);
-      content_grid.attach(&toggled_icon_widget, col, 0, 1, 1);
-      col += 1;
-    }
+    let allowed_toggle_expression = model.property_expression("allow-toggle");
+    let toggled_expression = model.property_expression("toggled");
+    let icon_name_expression = model.property_expression("icon-name");
 
-    if menu_has_icons {
-      content_grid.attach(&icon_widget, col, 0, 1, 1);
-      col += 1;
-    }
+    let combined = ClosureExpression::new::<Option<String>>(
+      [allowed_toggle_expression, toggled_expression, icon_name_expression],
+      closure!(|_: glib::Object, allow_toggle: bool, toggled: bool, icon_name: Option<String>| -> Option<String> {
+        DropdownMenuItem::get_icon_name(allow_toggle, toggled, icon_name)
+      }),
+    );
 
-    if ! menu_has_icons && ! menu_has_toggable_items && menu_is_submenu {
-      let blank_icon_widget = Widget::create_icon_widget(None::<String>, ICON_SIZE);
-      content_grid.attach(&blank_icon_widget, col, 0, 1, 1);
-      col += 1;
-    }
+    combined.bind(&icon_image, "icon-name", Some(&model));
+
+    model
+      .bind_property("submenu", &submenu_icon_image, "icon-name")
+      .transform_to(|_, submenu: ListStore| {
+        DropdownMenuItem::get_submenu_icon_name(submenu.n_items())
+      })
+      .build();
+
+
+    content_grid.attach(&icon_image, col, 0, 1, 1);
+    col += 1;
 
     content_grid.attach(&label, col, 0, 1, 1);
     col += 1;
 
-    if model.has_submenu() {
-      let arrow_icon_widget = Widget::create_icon_widget(Some("go-next-symbolic"), ICON_SIZE);
-      content_grid.attach(&arrow_icon_widget, col, 0, 1, 1);
-    } 
+    
+    content_grid.attach(&submenu_icon_image, col, 0, 1, 1);
+    col += 1;
+
 
     let click_gesture = GestureClick::new();
 
     container.append(&content_grid);
     container.add_controller(click_gesture.clone());
-    
+
     Self {
       container,
       model,
       click_gesture,
     }
   }
+
+  fn get_icon_name(allow_toggle: bool, toggled: bool, icon_name: Option<String>) -> Option<String> {
+    if allow_toggle {
+      if toggled {
+        Some("object-select-symbolic".to_string())
+      } else {
+        None
+      }
+    } else {
+      icon_name
+    }
+  }
+
+  fn get_submenu_icon_name(submenu_count: u32) -> Option<String> {
+    if submenu_count > 0 {
+      Some("go-next-symbolic".to_string())
+    } else {
+      None
+    }
+  }
+
 
   pub fn connect_clicked<F>(&self, callback: F)
   where
@@ -93,8 +124,10 @@ impl DropdownMenuItem {
     let model = self.model.clone();
 
     self.click_gesture.connect_released(move |_, _, _, _| {
-      callback(&model);
-    });    
+      if !model.disabled() {
+        callback(&model);
+      }
+    });
   }   
 }
 

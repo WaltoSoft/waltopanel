@@ -171,6 +171,7 @@ impl PanelButtonImp {
     button.connect_clicked(glib::clone!(@weak obj => move || {
       let imp = obj.imp();
       if let Some(menu) = imp.menu.get() {
+        PanelButton::close_other_instances(&obj);
         menu.toggle_visibility();
       } else if let Some(dropdown) = imp.dropdown_component.get() {
         PanelButton::close_other_instances(&obj);
