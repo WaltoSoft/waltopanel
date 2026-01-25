@@ -25,7 +25,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     .build();
 
   let panels = Rc::new(RefCell::new(Vec::<SystemPanel>::new()));
-  
+
   {
     let panels = panels.clone();
     app.connect_activate(move |app| {
@@ -41,14 +41,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn build_panels_for_all_monitors(
-  app: &adw::Application, 
+  app: &adw::Application,
   panels: &Rc<RefCell<Vec<SystemPanel>>>
 ) -> Result<(), Box<dyn std::error::Error>> {
   let display = gdk::Display::default().ok_or("Could not get default display")?;
-  
+
   // Clear existing panels
   panels.borrow_mut().clear();
-  
+
   // Create panel for each monitor
   let n_monitors = display.monitors().n_items();
   

@@ -17,10 +17,22 @@ pub struct WorkspaceInfo {
     pub has_fullscreen: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowInfo {
+    pub address: String,
+    pub workspace_id: i32,
+    pub class: String,
+    pub title: String,
+    pub monitor: i32,
+    pub pid: i32,
+}
+
 #[derive(Debug, Clone)]
 pub struct WorkspaceState {
     pub workspaces: Vec<WorkspaceInfo>,
+    pub windows: Vec<WindowInfo>,
     pub active_workspace_id: i32,
+    pub active_window_address: Option<String>,
     pub _current_monitor: String,
 }
 
@@ -33,7 +45,9 @@ struct MonitorSubscription {
 
 struct HyprlandServiceState {
     all_workspaces: Vec<WorkspaceInfo>,
+    all_windows: Vec<WindowInfo>,
     active_workspace_id: i32,
+    active_window_address: Option<String>,
     subscribers: Vec<MonitorSubscription>,
     _running: bool,
 }
@@ -53,18 +67,24 @@ impl HyprlandService {
                 let state = state_ref.borrow();
                 return Self::filter_workspace_state_for_monitor(
                     &state.all_workspaces,
+                    &state.all_windows,
                     state.active_workspace_id,
+                    state.active_window_address.clone(),
                     &monitor_name,
                 );
             }
 
             // First time initialization
             let all_workspaces = Self::query_workspaces().unwrap_or_default();
+            let all_windows = Self::query_windows().unwrap_or_default();
             let active_workspace_id = Self::query_active_workspace().unwrap_or(1);
+            let active_window_address = Self::query_active_window().unwrap_or(None);
 
             let service_state = Rc::new(RefCell::new(HyprlandServiceState {
                 all_workspaces: all_workspaces.clone(),
+                all_windows: all_windows.clone(),
                 active_workspace_id,
+                active_window_address: active_window_address.clone(),
                 subscribers: Vec::new(),
                 _running: true,
             }));
@@ -77,7 +97,9 @@ impl HyprlandService {
             // Return filtered state for this monitor
             Self::filter_workspace_state_for_monitor(
                 &all_workspaces,
+                &all_windows,
                 active_workspace_id,
+                active_window_address,
                 &monitor_name,
             )
         })
@@ -110,6 +132,13 @@ impl HyprlandService {
     pub fn switch_workspace(workspace_id: i32) {
         if let Err(e) = Self::send_command(&format!("dispatch workspace {}", workspace_id)) {
             eprintln!("Failed to switch workspace: {}", e);
+        }
+    }
+
+    /// Focus a window by its address
+    pub fn focus_window(window_address: &str) {
+        if let Err(e) = Self::send_command(&format!("dispatch focuswindow address:{}", window_address)) {
+            eprintln!("Failed to focus window: {}", e);
         }
     }
 
@@ -233,6 +262,53 @@ impl HyprlandService {
             .ok_or_else(|| "Failed to get active workspace ID".to_string())
     }
 
+    /// Query all windows from Hyprland
+    fn query_windows() -> Result<Vec<WindowInfo>, String> {
+        let response = Self::send_command("j/clients")?;
+        let clients: Value = serde_json::from_str(&response)
+            .map_err(|e| format!("Failed to parse clients JSON: {}. Response was: {}", e, response))?;
+
+        let mut result = Vec::new();
+
+        if let Some(clients_array) = clients.as_array() {
+            for client in clients_array {
+                if let (Some(address), Some(workspace_id), Some(class), Some(title)) = (
+                    client["address"].as_str(),
+                    client["workspace"]["id"].as_i64(),
+                    client["class"].as_str(),
+                    client["title"].as_str(),
+                ) {
+                    result.push(WindowInfo {
+                        address: address.to_string(),
+                        workspace_id: workspace_id as i32,
+                        class: class.to_string(),
+                        title: title.to_string(),
+                        monitor: client["monitor"].as_i64().unwrap_or(0) as i32,
+                        pid: client["pid"].as_i64().unwrap_or(0) as i32,
+                    });
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Get the currently focused window address
+    fn query_active_window() -> Result<Option<String>, String> {
+        let response = Self::send_command("j/activewindow")?;
+        let window: Value = serde_json::from_str(&response)
+            .map_err(|e| format!("Failed to parse active window JSON: {}", e))?;
+
+        // If there's no active window, Hyprland returns an empty object or null address
+        if let Some(address) = window["address"].as_str() {
+            if !address.is_empty() && address != "0x0" {
+                return Ok(Some(address.to_string()));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Get the active workspace ID for a specific monitor
     fn query_active_workspace_for_monitor(monitor_name: &str) -> Result<i32, String> {
         let response = Self::send_command("j/monitors")?;
@@ -257,11 +333,23 @@ impl HyprlandService {
     /// Filter workspace state for a specific monitor
     fn filter_workspace_state_for_monitor(
         all_workspaces: &[WorkspaceInfo],
+        all_windows: &[WindowInfo],
         _global_active_workspace_id: i32,
+        active_window_address: Option<String>,
         monitor_name: &str,
     ) -> WorkspaceState {
         // Filter workspaces for this monitor and apply visibility rules
         let monitor_workspaces = Self::filter_visible_workspaces(all_workspaces, monitor_name);
+
+        // Get workspace IDs for this monitor
+        let monitor_workspace_ids: Vec<i32> = monitor_workspaces.iter().map(|ws| ws.id).collect();
+
+        // Filter windows to only those on this monitor's workspaces
+        let monitor_windows: Vec<WindowInfo> = all_windows
+            .iter()
+            .filter(|w| monitor_workspace_ids.contains(&w.workspace_id))
+            .cloned()
+            .collect();
 
         // Get the active workspace for THIS monitor specifically
         let active_workspace_id = Self::query_active_workspace_for_monitor(monitor_name)
@@ -269,7 +357,9 @@ impl HyprlandService {
 
         WorkspaceState {
             workspaces: monitor_workspaces,
+            windows: monitor_windows,
             active_workspace_id,
+            active_window_address,
             _current_monitor: monitor_name.to_string(),
         }
     }
@@ -311,13 +401,17 @@ impl HyprlandService {
             if let Some(state_ref) = service.borrow().as_ref() {
                 let state = state_ref.borrow();
                 let all_workspaces = state.all_workspaces.clone();
+                let all_windows = state.all_windows.clone();
                 let active_workspace_id = state.active_workspace_id;
+                let active_window_address = state.active_window_address.clone();
 
                 // Notify each subscriber with their monitor-specific state
                 for sub in &state.subscribers {
                     let monitor_state = Self::filter_workspace_state_for_monitor(
                         &all_workspaces,
+                        &all_windows,
                         active_workspace_id,
+                        active_window_address.clone(),
                         &sub.monitor_name,
                     );
                     (sub.callback)(monitor_state);
@@ -349,7 +443,7 @@ impl HyprlandService {
 
             for line in reader.lines() {
                 if let Ok(event) = line {
-                    // Check if this is a workspace-related event
+                    // Check if this is a workspace or window-related event
                     if event.starts_with("workspace>>")
                         || event.starts_with("createworkspace>>")
                         || event.starts_with("destroyworkspace>>")
@@ -357,19 +451,24 @@ impl HyprlandService {
                         || event.starts_with("openwindow>>")
                         || event.starts_with("closewindow>>")
                         || event.starts_with("movewindow>>")
+                        || event.starts_with("activewindow>>")
                     {
                         // Schedule the state update on the main thread
                         glib::idle_add_once(move || {
-                            // Update global workspace state
+                            // Update global workspace and window state
                             let all_workspaces = Self::query_workspaces().unwrap_or_default();
+                            let all_windows = Self::query_windows().unwrap_or_default();
                             let active_workspace_id =
                                 Self::query_active_workspace().unwrap_or(1);
+                            let active_window_address = Self::query_active_window().unwrap_or(None);
 
                             HYPRLAND_SERVICE.with(|service| {
                                 if let Some(state_ref) = service.borrow().as_ref() {
                                     let mut state = state_ref.borrow_mut();
                                     state.all_workspaces = all_workspaces;
+                                    state.all_windows = all_windows;
                                     state.active_workspace_id = active_workspace_id;
+                                    state.active_window_address = active_window_address;
                                 }
                             });
 
