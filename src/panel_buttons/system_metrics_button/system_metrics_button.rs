@@ -18,14 +18,13 @@ impl SystemMetricsButton {
 
     // Create ring indicators
     let cpu_ring = RingIndicator::new();
-    cpu_ring.set_label("CPU");
-
     let memory_ring = RingIndicator::new();
-    memory_ring.set_label("MEM");
 
-    // Create panel buttons
+    // Create panel buttons with text labels
     let cpu_button = PanelButton::new();
+    cpu_button.set_text("CPU");
     let memory_button = PanelButton::new();
+    memory_button.set_text("MEM");
 
     // Set the ring indicators as custom widgets in the panel buttons
     cpu_button.set_custom_widget(Some(&cpu_ring.clone().upcast()));

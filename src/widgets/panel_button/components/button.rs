@@ -69,10 +69,10 @@ impl Button {
 
     let click_gesture = GestureClick::new();
 
-    // Order: custom widget, icon, text
+    // Order: text, custom widget, icon
+    container.append(&text_label);
     container.append(&widget_container);
     container.append(&icon_image);
-    container.append(&text_label);
     container.add_controller(click_gesture.clone());
     container.set_parent(parent);
 

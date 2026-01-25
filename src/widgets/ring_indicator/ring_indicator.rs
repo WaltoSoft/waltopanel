@@ -3,13 +3,12 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::subclass::widget::WidgetImpl;
 // Removed unused imports
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::f64::consts::PI;
 
 #[derive(Debug, Default)]
 pub struct RingIndicatorPriv {
     percentage: Cell<f64>,
-    label: RefCell<String>,
 }
 
 
@@ -30,15 +29,14 @@ impl ObjectImpl for RingIndicatorPriv {}
 impl WidgetImpl for RingIndicatorPriv {
     fn snapshot(&self, snapshot: &gtk::Snapshot) {
         let percentage = self.percentage.get();
-        let label = self.label.borrow();
 
         // Use fixed size for drawing (matches set_size_request)
         let width = self.obj().width() as f64;
         let height = self.obj().height() as f64;
         let center_x = width / 2.0;
         let center_y = height / 2.0;
-    let radius = (f64::min(width, height) / 2.0) - 2.0;
-        let line_width = 3.0;
+    let radius = (f64::min(width, height) / 2.0) - 1.0;
+        let line_width = 2.0;
 
     // Draw background ring
     let rect = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
@@ -63,17 +61,6 @@ impl WidgetImpl for RingIndicatorPriv {
             let _ = cr.stroke();
         }
 
-        // Draw label
-        if !label.is_empty() {
-            cr.set_source_rgb(0.9, 0.9, 0.9);
-            cr.select_font_face("Sans", gtk::cairo::FontSlant::Normal, gtk::cairo::FontWeight::Bold);
-            cr.set_font_size(8.0);
-            let extents = cr.text_extents(&label).unwrap();
-            let text_x = center_x - extents.width() / 2.0 - extents.x_bearing();
-            let text_y = center_y - extents.height() / 2.0 - extents.y_bearing();
-            cr.move_to(text_x, text_y);
-            let _ = cr.show_text(&label);
-        }
     }
 }
 
@@ -86,7 +73,7 @@ glib::wrapper! {
 impl RingIndicator {
     pub fn new() -> Self {
         let obj: Self = glib::Object::new();
-            obj.set_size_request(32, 32);
+            obj.set_size_request(16, 16);
         obj
     }
 
@@ -101,16 +88,6 @@ impl RingIndicator {
         imp.percentage.get()
     }
 
-    pub fn set_label(&self, label: &str) {
-        let imp = self.imp();
-        imp.label.replace(label.to_string());
-        self.queue_draw();
-    }
-
-    pub fn label(&self) -> String {
-        let imp = self.imp();
-        imp.label.borrow().clone()
-    }
 }
 
 impl Default for RingIndicator {
