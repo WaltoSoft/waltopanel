@@ -5,14 +5,10 @@ use gtk4_layer_shell::LayerShell;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::curtain_bar::CurtainBar;
-
+use crate::system_panel::SystemPanel;
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-
   adw::init().unwrap();
-
-  dump_gtk_theme_settings();
 
   // Load CSS
   let css_provider = gtk::CssProvider::new();
@@ -24,11 +20,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
   );
 
   let app = adw::Application::builder()
-    .application_id("com.example.CurtainBar")
+    .application_id("com.waltosoft.WaltoPanel")
     .flags(gio::ApplicationFlags::empty())
     .build();
 
-  let panels = Rc::new(RefCell::new(Vec::<CurtainBar>::new()));
+  let panels = Rc::new(RefCell::new(Vec::<SystemPanel>::new()));
   
   {
     let panels = panels.clone();
@@ -46,7 +42,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 fn build_panels_for_all_monitors(
   app: &adw::Application, 
-  panels: &Rc<RefCell<Vec<CurtainBar>>>
+  panels: &Rc<RefCell<Vec<SystemPanel>>>
 ) -> Result<(), Box<dyn std::error::Error>> {
   let display = gdk::Display::default().ok_or("Could not get default display")?;
   
@@ -55,15 +51,12 @@ fn build_panels_for_all_monitors(
   
   // Create panel for each monitor
   let n_monitors = display.monitors().n_items();
-  println!("Found {} monitors", n_monitors);
   
   for i in 0..n_monitors {
     if let Some(monitor_obj) = display.monitors().item(i) {
       let monitor = monitor_obj.downcast::<gdk::Monitor>()
         .map_err(|_| "Failed to downcast monitor")?;
-      
-      println!("Creating panel for monitor {}: {:?}", i, monitor.model());
-      
+     
       let mut panel = create_panel_for_monitor(app, &monitor, i as usize)?;
       panel.present();
       
@@ -77,7 +70,6 @@ fn build_panels_for_all_monitors(
     let app_weak = app.downgrade();
     let monitors = display.monitors();
     monitors.connect_items_changed(move |_, _, _, _| {
-      println!("Monitors changed, recreating panels");
       if let Some(app) = app_weak.upgrade() {
         if let Err(e) = build_panels_for_all_monitors(&app, &panels) {
           eprintln!("Failed to recreate panels: {}", e);
@@ -93,35 +85,19 @@ fn create_panel_for_monitor(
   app: &adw::Application,
   monitor: &gdk::Monitor,
   monitor_index: usize
-) -> Result<CurtainBar, Box<dyn std::error::Error>> {
+) -> Result<SystemPanel, Box<dyn std::error::Error>> {
   let geometry = monitor.geometry();
-  println!("Monitor geometry: {}x{} at ({}, {})",
-           geometry.width(), geometry.height(), geometry.x(), geometry.y());
 
   // Get the monitor connector name (e.g., "eDP-1", "DP-1")
   let monitor_name = monitor.connector()
     .map(|s| s.to_string())
     .unwrap_or_else(|| format!("monitor-{}", monitor_index));
 
-  println!("Monitor connector: {}", monitor_name);
-
   // Create the panel with the monitor name
-  let panel = CurtainBar::new_with_monitor(app, monitor_name)?;
+  let panel = SystemPanel::new_with_monitor(app, monitor_name)?;
 
   // Explicitly assign this panel to the specific monitor
   panel.window.set_monitor(Some(monitor));
 
   Ok(panel)
-}
-
-use gtk::prelude::*;
-
-pub fn dump_gtk_theme_settings() {
-    let settings = gtk::Settings::default().expect("No default GtkSettings");
-
-    let theme: Option<String> = settings.property("gtk-theme-name");
-    let icon_theme: Option<String> = settings.property("gtk-icon-theme-name");
-
-    eprintln!("gtk-theme-name: {:?}", theme);
-    eprintln!("gtk-icon-theme-name: {:?}", icon_theme);
 }

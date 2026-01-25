@@ -1,14 +1,14 @@
 use gtk4_layer_shell::Layer;
 
 #[derive(Clone)]
-pub struct CurtainBarConfig {
+pub struct WaltoPanelConfig {
   pub height: i32,
   pub layer: Layer,
   pub margins: Margins,
   pub button_spacing: i32,
 }
 
-impl Default for CurtainBarConfig {
+impl Default for WaltoPanelConfig {
   fn default() -> Self {
     Self {
       height: 16,

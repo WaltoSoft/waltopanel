@@ -1,11 +1,10 @@
 pub mod app;
+mod config;
 mod constants;
-mod curtain_bar;
 mod models;
 mod panel_buttons;
+mod system_panel;
 mod traits;
 mod types;
-pub mod util;
+mod util;
 mod widgets;
-mod config;
-

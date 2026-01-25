@@ -4,15 +4,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug curtain_bar",
+            "name": "Debug waltopanel",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=curtain_bar",
-                    "--package=curtain_bar"
+                    "--bin=waltopanel",
+                    "--package=waltopanel"
                 ],
                 "filter": {
-                    "name": "curtain_bar",
+                    "name": "waltopanel",
                     "kind": "bin"
                 }
             },
@@ -22,8 +22,8 @@
         {
             "type": "cppdbg",
             "request": "launch",
-            "name": "Debug curtain_bar (C++ Tools)",
-            "program": "${workspaceFolder}/target/debug/curtain_bar",
+            "name": "Debug waltopanel (C++ Tools)",
+            "program": "${workspaceFolder}/target/debug/waltopanel",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

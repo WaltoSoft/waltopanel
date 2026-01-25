@@ -1,5 +1,6 @@
 window {
   background-color: --var(--window-bg-color);
+  font-size: 12px;
 }
 
 .panelbutton {

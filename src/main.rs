@@ -1,4 +1,4 @@
-use curtain_bar::app;
+use waltopanel::app;
 
 fn main() {
   if let Err(e) = app::run() {

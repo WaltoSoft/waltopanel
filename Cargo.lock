@@ -263,23 +263,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
-name = "curtain_bar"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "futures",
- "gtk4",
- "gtk4-layer-shell",
- "indexmap",
- "libadwaita",
- "libc",
- "serde_json",
- "tokio",
- "uuid",
- "zbus",
-]
-
-[[package]]
 name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1344,6 +1327,23 @@ name = "version-compare"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "852e951cb7832cb45cb1169900d19760cfa39b82bc0ea9c0e5a14ae88411c98b"
+
+[[package]]
+name = "waltopanel"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "futures",
+ "gtk4",
+ "gtk4-layer-shell",
+ "indexmap",
+ "libadwaita",
+ "libc",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "zbus",
+]
 
 [[package]]
 name = "wasip2"

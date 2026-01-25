@@ -1,37 +1,34 @@
 use adw::ApplicationWindow;
 use adw::prelude::AdwApplicationWindowExt;
 use gtk::Align;
+use gtk::CenterBox;
 use gtk::Orientation;
 use gtk::prelude::*;
 use gtk::Box;
 use std::boxed::Box as StdBox;
 
-use crate::config::{CurtainBarConfig, Margins};
+use crate::config::{WaltoPanelConfig, Margins};
 use crate::panel_buttons::ClockButton;
 use crate::traits::ApplicationWindowExtensions;
 use crate::traits::CompositeWidget;
 
-pub struct CurtainBar {
+pub struct SystemPanel {
   pub window: ApplicationWindow,
 }
 
-impl CurtainBar {
-  pub fn new(app: &adw::Application) -> Result<Self, StdBox<dyn std::error::Error>> {
-    Self::with_config(app, CurtainBarConfig::default(), None)
-  }
-
+impl SystemPanel {
   pub fn new_with_monitor(app: &adw::Application, monitor_name: String) -> Result<Self, StdBox<dyn std::error::Error>> {
-    Self::with_config(app, CurtainBarConfig::default(), Some(monitor_name))
+    Self::with_config(app, WaltoPanelConfig::default(), Some(monitor_name))
   }
 
   fn with_config(
     app: &adw::Application,
-    config: CurtainBarConfig,
+    config: WaltoPanelConfig,
     monitor_name: Option<String>,
   ) -> Result<Self, StdBox<dyn std::error::Error>> {
     let window = ApplicationWindow::builder()
       .application(app)
-      .title("Curtain Bar")
+      .title("WaltoPanel")
       .build();
 
     let _ = window.configure_top_layer_shell(config.height);
@@ -41,23 +38,23 @@ impl CurtainBar {
 
     window.set_content(Some(&panel_box));
 
-    let curtain_bar = Self {
+    let system_panel = Self {
       window
     };
 
-    Ok(curtain_bar)
+    Ok(system_panel)
   }
-
+  
   fn create_panel_container(
     spacing: i32,
     margins: &Margins,
     monitor_name: Option<String>,
-  ) -> gtk::Box {
+  ) -> gtk::CenterBox {
     let left_box = Box::builder()
       .orientation(Orientation::Horizontal)
       .spacing(spacing)
-      .hexpand(true)
       .halign(Align::Start)
+      .hexpand(true)
       .build();
 
     let center_box = Box::builder()
@@ -69,22 +66,17 @@ impl CurtainBar {
     let right_box = Box::builder()
       .orientation(Orientation::Horizontal)
       .spacing(spacing)
-      .hexpand(true)
       .halign(Align::End)
+      .hexpand(true)
       .build();
 
-    let panel_box = Box::builder()
+    let panel_box = CenterBox::builder()
       .orientation(Orientation::Horizontal)
-      .spacing(8)
       .margin_start(margins.left)
       .margin_end(margins.right)
       .margin_top(margins.top)
       .margin_bottom(margins.bottom)
       .build();
-
-    panel_box.append(&left_box);
-    panel_box.append(&center_box);
-    panel_box.append(&right_box);
 
     let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("view-app-grid-symbolic", "pkill rofi || rofi -show drun");
     let launch_widget = launch_button.widget();
@@ -114,7 +106,9 @@ impl CurtainBar {
     right_box.append(&system_close_button.widget());
 
 
-
+    panel_box.set_start_widget(Some(&left_box));
+    panel_box.set_center_widget(Some(&center_box));
+    panel_box.set_end_widget(Some(&right_box));
 
     panel_box
   }
