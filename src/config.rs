@@ -11,11 +11,11 @@ pub struct CurtainBarConfig {
 impl Default for CurtainBarConfig {
   fn default() -> Self {
     Self {
-      height: 24,
+      height: 16,
       layer: Layer::Top,
       margins: Margins {
-        top: 0,
-        bottom: 0,
+        top: 8,
+        bottom: 8,
         left: 8,
         right: 8,
       },
