@@ -193,7 +193,7 @@ impl DropdownMenu {
     for menu_item in &self.current_menu() {
       let menu_item_row = self.build_menu_item_row(&menu_item);
       list_box.append_with_hover(&menu_item_row);
-    }    
+    }
 
     list_box.set_selection_mode_deferred(SelectionMode::Browse);
     menu_box.append(&list_box);

@@ -7,9 +7,9 @@ use gtk::Box;
 use std::boxed::Box as StdBox;
 
 use crate::config::{CurtainBarConfig, Margins};
+use crate::panel_buttons::ClockButton;
 use crate::traits::ApplicationWindowExtensions;
 use crate::traits::CompositeWidget;
-use crate::widgets::PanelButton;
 
 pub struct CurtainBar {
   pub window: ApplicationWindow,
@@ -84,6 +84,8 @@ impl CurtainBar {
     let launch_widget = launch_button.widget();
     left_box.append(&launch_widget);
 
+    let clock_button = ClockButton::new();
+    center_box.append(&clock_button.widget());
 
     let system_metrics_button = crate::panel_buttons::SystemMetricsButton::new();
     right_box.append(&system_metrics_button.widget());

@@ -40,10 +40,20 @@ impl DropdownMenuItem {
 
     let label = Label::builder()
       .halign(Align::Start)
-      .hexpand(true)
       .valign(Align::Center)
       .label(&model.text())
       .build();
+
+    let post_label_icon = OptionalImage::new(model.post_label_icon_name().as_deref(), ICON_SIZE);
+
+    // Wrap label and post-label icon in a horizontal box
+    let label_container = Box::builder()
+      .orientation(Orientation::Horizontal)
+      .spacing(4)
+      .hexpand(true)
+      .build();
+    label_container.append(&label);
+    label_container.append(&post_label_icon);
 
     let icon_name = DropdownMenuItem::get_icon_name(model.allow_toggle(), model.toggled(), model.icon_name());
     let icon_image = OptionalImage::new(icon_name.as_deref(), ICON_SIZE);
@@ -51,6 +61,7 @@ impl DropdownMenuItem {
     let submenu_icon_image = OptionalImage::new(submenu_icon_name.as_deref(), ICON_SIZE);
 
     model.bind_property("text", &label, "label").build();
+    model.bind_property("post-label-icon-name", &post_label_icon, "icon-name").build();
 
     let allowed_toggle_expression = model.property_expression("allow-toggle");
     let toggled_expression = model.property_expression("toggled");
@@ -76,10 +87,9 @@ impl DropdownMenuItem {
     content_grid.attach(&icon_image, col, 0, 1, 1);
     col += 1;
 
-    content_grid.attach(&label, col, 0, 1, 1);
+    content_grid.attach(&label_container, col, 0, 1, 1);
     col += 1;
 
-    
     content_grid.attach(&submenu_icon_image, col, 0, 1, 1);
     col += 1;
 

@@ -6,7 +6,7 @@ pub struct PanelButtonBuilder {
 } 
 
 impl PanelButtonBuilder {
-  fn new() -> Self {
+  pub fn new() -> Self {
     Self {
       builder: Object::builder(),
     }

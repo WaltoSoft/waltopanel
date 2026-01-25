@@ -11,6 +11,7 @@ pub struct MenuItemModelImp {
   pub(super) id: RefCell<String>,
   pub(super) text: RefCell<String>,
   pub(super) icon_name: RefCell<Option<String>>,
+  pub(super) post_label_icon_name: RefCell<Option<String>>,
   pub(super) toggled: RefCell<bool>,
   pub(super) allow_toggle: RefCell<bool>,
   pub(super) separator_after: RefCell<bool>,
@@ -24,6 +25,7 @@ impl Default for MenuItemModelImp {
       id: RefCell::new(String::new()),
       text: RefCell::new(String::new()),
       icon_name: RefCell::new(None),
+      post_label_icon_name: RefCell::new(None),
       toggled: RefCell::new(false),
       allow_toggle: RefCell::new(false),
       separator_after: RefCell::new(false),
@@ -49,6 +51,7 @@ impl ObjectImpl for MenuItemModelImp {
         ParamSpecString::builder("id").build(),
         ParamSpecString::builder("text").build(),
         ParamSpecString::builder("icon-name").build(),
+        ParamSpecString::builder("post-label-icon-name").build(),
         ParamSpecBoolean::builder("toggled").build(),
         ParamSpecBoolean::builder("allow-toggle").build(),
         ParamSpecBoolean::builder("separator-after").build(),
@@ -63,6 +66,7 @@ impl ObjectImpl for MenuItemModelImp {
       "id" => self.id.borrow().to_value(),
       "text" => self.text.borrow().to_value(),
       "icon-name" => self.icon_name.borrow().to_value(),
+      "post-label-icon-name" => self.post_label_icon_name.borrow().to_value(),
       "toggled" => self.toggled.borrow().to_value(),
       "allow-toggle" => self.allow_toggle.borrow().to_value(),
       "separator-after" => self.separator_after.borrow().to_value(),
@@ -88,6 +92,10 @@ impl ObjectImpl for MenuItemModelImp {
       "icon-name" => {
           let icon_name = value.get().expect("type checked upstream");
           self.icon_name.replace(icon_name);
+      }
+      "post-label-icon-name" => {
+          let post_label_icon_name = value.get().expect("type checked upstream");
+          self.post_label_icon_name.replace(post_label_icon_name);
       }
       "toggled" => {
           let toggled = value.get().expect("type checked upstream");

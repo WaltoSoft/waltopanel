@@ -40,7 +40,15 @@ impl MenuItemModel {
   pub fn set_icon_name(&self, icon_name: Option<&str>) {
     self.set_property("icon-name", icon_name);
   }
-  
+
+  pub fn post_label_icon_name(&self) -> Option<String> {
+    self.property("post-label-icon-name")
+  }
+
+  pub fn set_post_label_icon_name(&self, icon_name: Option<&str>) {
+    self.set_property("post-label-icon-name", icon_name);
+  }
+
   pub fn toggled(&self) -> bool {
     self.property("toggled")
   }
