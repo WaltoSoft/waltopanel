@@ -90,20 +90,27 @@ fn build_panels_for_all_monitors(
 }
 
 fn create_panel_for_monitor(
-  app: &adw::Application, 
+  app: &adw::Application,
   monitor: &gdk::Monitor,
   monitor_index: usize
 ) -> Result<CurtainBar, Box<dyn std::error::Error>> {
   let geometry = monitor.geometry();
-  println!("Monitor geometry: {}x{} at ({}, {})", 
+  println!("Monitor geometry: {}x{} at ({}, {})",
            geometry.width(), geometry.height(), geometry.x(), geometry.y());
-  
-  // Create the panel
-  let panel = CurtainBar::new(app)?;
-  
+
+  // Get the monitor connector name (e.g., "eDP-1", "DP-1")
+  let monitor_name = monitor.connector()
+    .map(|s| s.to_string())
+    .unwrap_or_else(|| format!("monitor-{}", monitor_index));
+
+  println!("Monitor connector: {}", monitor_name);
+
+  // Create the panel with the monitor name
+  let panel = CurtainBar::new_with_monitor(app, monitor_name)?;
+
   // Explicitly assign this panel to the specific monitor
   panel.window.set_monitor(Some(monitor));
-  
+
   Ok(panel)
 }
 

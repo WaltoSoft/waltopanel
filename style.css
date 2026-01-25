@@ -71,3 +71,13 @@ window {
 .panelbutton-rotated image {
   -gtk-icon-transform: rotate(90deg);
 }
+
+/* Workspace button styling */
+.workspace-active {
+  border-bottom: 2px solid var(--accent-bg-color);
+}
+
+.workspace-plus-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

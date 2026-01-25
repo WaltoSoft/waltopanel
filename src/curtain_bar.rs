@@ -17,12 +17,17 @@ pub struct CurtainBar {
 
 impl CurtainBar {
   pub fn new(app: &adw::Application) -> Result<Self, StdBox<dyn std::error::Error>> {
-    Self::with_config(app, CurtainBarConfig::default())
+    Self::with_config(app, CurtainBarConfig::default(), None)
+  }
+
+  pub fn new_with_monitor(app: &adw::Application, monitor_name: String) -> Result<Self, StdBox<dyn std::error::Error>> {
+    Self::with_config(app, CurtainBarConfig::default(), Some(monitor_name))
   }
 
   fn with_config(
     app: &adw::Application,
     config: CurtainBarConfig,
+    monitor_name: Option<String>,
   ) -> Result<Self, StdBox<dyn std::error::Error>> {
     let window = ApplicationWindow::builder()
       .application(app)
@@ -32,7 +37,7 @@ impl CurtainBar {
     let _ = window.configure_top_layer_shell(config.height);
 
     let panel_box =
-      Self::create_panel_container(config.button_spacing, &config.margins);
+      Self::create_panel_container(config.button_spacing, &config.margins, monitor_name);
 
     window.set_content(Some(&panel_box));
 
@@ -46,6 +51,7 @@ impl CurtainBar {
   fn create_panel_container(
     spacing: i32,
     margins: &Margins,
+    monitor_name: Option<String>,
   ) -> gtk::Box {
     let left_box = Box::builder()
       .orientation(Orientation::Horizontal)
@@ -83,6 +89,11 @@ impl CurtainBar {
     let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("view-app-grid-symbolic", "pkill rofi || rofi -show drun");
     let launch_widget = launch_button.widget();
     left_box.append(&launch_widget);
+
+    if let Some(monitor_name) = monitor_name {
+      let workspace_button = crate::panel_buttons::WorkspaceButton::new_with_monitor(monitor_name);
+      left_box.append(&workspace_button.widget());
+    }
 
     let clock_button = ClockButton::new();
     center_box.append(&clock_button.widget());

@@ -161,7 +161,6 @@ impl NetworkService {
 
   pub fn connect_to_wifi(ssid: &str) {
     let ssid = ssid.to_string();
-    eprintln!("[NetworkService] connect_to_wifi called with ssid: {}", ssid);
 
     // First check if the network needs a password
     let ssid_clone = ssid.clone();
@@ -171,17 +170,14 @@ impl NetworkService {
           // Network is open or known - connect directly
           // Don't call refresh() here - D-Bus signals will update state when connection completes
           let result = connect_to_wifi_dbus(&ssid_clone);
-          match result {
-            Ok(_) => eprintln!("[NetworkService] connect_to_wifi_dbus succeeded"),
-            Err(e) => {
-              eprintln!("[NetworkService] connect_to_wifi_dbus error: {}", e);
-              Self::refresh(); // Only refresh on error
-            }
+          
+          if let Err(e) = result {
+            eprintln!("[NetworkService] connect_to_wifi_dbus error: {}", e);
+            Self::refresh();
           }
         }
         Ok(NeedsPassword::Yes) => {
           // Network needs a password - show dialog on main thread
-          eprintln!("[NetworkService] Network {} needs password, showing dialog", ssid_clone);
           let ssid_for_dialog = ssid_clone.clone();
           glib::idle_add_once(move || {
             show_password_dialog(&ssid_for_dialog);
@@ -205,9 +201,7 @@ impl NetworkService {
 
       match result {
         Ok(output) => {
-          if output.status.success() {
-            eprintln!("[NetworkService] iwctl disconnect succeeded");
-          } else {
+          if ! output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("[NetworkService] iwctl disconnect failed: {}", stderr);
           }
@@ -222,7 +216,6 @@ impl NetworkService {
   /// Show a confirmation dialog and disconnect if confirmed
   pub fn confirm_disconnect_wifi(ssid: &str) {
     let ssid = ssid.to_string();
-    eprintln!("[NetworkService] confirm_disconnect_wifi called for: {}", ssid);
     glib::idle_add_once(move || {
       show_disconnect_confirmation_dialog(&ssid);
     });
@@ -232,7 +225,6 @@ impl NetworkService {
   pub fn connect_to_wifi_with_password(ssid: &str, password: &str) {
     let ssid = ssid.to_string();
     let password = password.to_string();
-    eprintln!("[NetworkService] connect_to_wifi_with_password called with ssid: {}", ssid);
 
     std::thread::spawn(move || {
       // Don't call refresh() on success - D-Bus signals will update state when connection completes
@@ -242,10 +234,7 @@ impl NetworkService {
 
       match result {
         Ok(output) => {
-          if output.status.success() {
-            eprintln!("[NetworkService] iwctl connect succeeded for {}", ssid);
-            // D-Bus signals will handle state update
-          } else {
+          if ! output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("[NetworkService] iwctl connect failed for {}: {}", ssid, stderr);
             Self::refresh(); // Only refresh on failure
@@ -267,7 +256,6 @@ impl NetworkService {
       NETWORK_SERVICE.with(|service| {
         let mut service_opt = service.borrow_mut();
         if let Some(ref mut state) = *service_opt {
-          eprintln!("[NetworkService] refresh() - signal_strength: {} -> {}", state.metrics.signal_strength, metrics.signal_strength);
           state.metrics = metrics.clone();
 
           for subscriber in &state.subscribers {
@@ -280,7 +268,6 @@ impl NetworkService {
 
   /// Update only the network lists (wifi networks + ethernet) - used by periodic polling
   fn update_network_lists(wifi_networks: Vec<WifiInfo>, ethernet: Vec<EthernetInfo>) {
-    eprintln!("[NetworkService] update_network_lists: {} wifi networks, {} ethernet", wifi_networks.len(), ethernet.len());
     glib::idle_add_once(move || {
       NETWORK_SERVICE.with(|service| {
         let mut service_opt = service.borrow_mut();
@@ -339,7 +326,6 @@ impl NetworkService {
 
           if let Some(signal) = signal_strength {
             if state.metrics.signal_strength != signal {
-              eprintln!("[NetworkService] signal_strength updated: {} -> {}", state.metrics.signal_strength, signal);
               state.metrics.signal_strength = signal;
               changed = true;
             }
@@ -578,7 +564,6 @@ fn get_ethernet_connections() -> Vec<EthernetInfo> {
 fn get_wifi_connections() -> Vec<WifiInfo> {
   // Use D-Bus to query iwd for precise signal strength values
   get_wifi_connections_dbus().unwrap_or_else(|e| {
-    eprintln!("D-Bus wifi query failed: {}, falling back to iwctl", e);
     get_wifi_connections_iwctl_fallback()
   })
 }
@@ -720,9 +705,6 @@ fn check_network_needs_password(ssid: &str) -> Result<NeedsPassword, Box<dyn std
 
             let is_known = known_network.is_some();
             let is_open = network_type == "open";
-
-            eprintln!("[NetworkService] check_network_needs_password: type={}, is_known={}, is_open={}",
-              network_type, is_known, is_open);
 
             if is_open || is_known {
               return Ok(NeedsPassword::No);
@@ -893,8 +875,6 @@ fn connect_to_wifi_dbus(ssid: &str) -> Result<(), Box<dyn std::error::Error>> {
       if let Some(name_value) = network_props.get("Name") {
         if let Ok(name) = TryInto::<String>::try_into(name_value.clone()) {
           if name == ssid {
-            eprintln!("[NetworkService] Found network {} at path {}", ssid, path);
-
             // Call Connect on this Network
             let network_proxy = zbus::blocking::Proxy::new(
               &connection,
@@ -904,15 +884,10 @@ fn connect_to_wifi_dbus(ssid: &str) -> Result<(), Box<dyn std::error::Error>> {
             )?;
 
             let result: Result<(), zbus::Error> = network_proxy.call("Connect", &());
-            match result {
-              Ok(_) => {
-                eprintln!("[NetworkService] Connect call succeeded for {}", ssid);
-                return Ok(());
-              }
-              Err(e) => {
-                eprintln!("[NetworkService] Connect call failed for {}: {}", ssid, e);
-                return Err(e.into());
-              }
+
+            if let Err(e) = result {
+              eprintln!("[NetworkService] Connect call failed for {}: {}", ssid, e);
+              return Err(e.into());
             }
           }
         }
