@@ -92,7 +92,7 @@ impl BatteryService {
     });
   }
 
-  pub fn get_current_state() -> Option<BatteryMetrics> {
+  pub fn _get_current_state() -> Option<BatteryMetrics> {
     BATTERY_SERVICE.with(|service| {
       service.borrow().as_ref().map(|state| {
         state.borrow().metrics.clone()

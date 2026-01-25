@@ -22,7 +22,7 @@ struct WorkspaceButtonState {
 }
 
 impl WorkspaceButton {
-    pub fn new() -> Self {
+    pub fn _new() -> Self {
         let button_group = PanelButtonGroup::new();
         let plus_button = PanelButton::from_text("+");
 
@@ -54,7 +54,7 @@ impl WorkspaceButton {
         let obj_clone = obj.clone();
         let button_group_widget: Widget = obj.button_group.clone().upcast();
         button_group_widget.connect_realize(move |widget| {
-            if let Some(monitor_name) = Self::get_monitor_name(widget) {
+            if let Some(monitor_name) = Self::_get_monitor_name(widget) {
                 obj_clone.initialize_with_monitor(monitor_name);
             } else {
                 eprintln!("Warning: Could not determine monitor name for WorkspaceButton");
@@ -115,7 +115,7 @@ impl WorkspaceButton {
     }
 
     /// Get the monitor name from the widget's window
-    fn get_monitor_name(widget: &Widget) -> Option<String> {
+    fn _get_monitor_name(widget: &Widget) -> Option<String> {
         let native = widget.native()?;
         let surface = native.surface()?;
         let display = surface.display();

@@ -8,7 +8,7 @@ use crate::widgets::PanelButton;
 pub struct VolumeSlider {
   container: Box,
   scale: Scale,
-  label: Label,
+  _label: Label,
   mute_button: Button,
 }
 
@@ -65,7 +65,7 @@ impl VolumeSlider {
     Self {
       container,
       scale,
-      label,
+      _label: label,
       mute_button,
     }
   }
@@ -91,7 +91,7 @@ impl VolumeSlider {
     self.scale.set_value(volume.clamp(0.0, 100.0));
   }
 
-  pub fn volume(&self) -> f64 {
+  pub fn _volume(&self) -> f64 {
     self.scale.value()
   }
 

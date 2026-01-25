@@ -6,10 +6,10 @@ use super::{SystemMetricsService, SystemMetrics};
 
 pub struct SystemMetricsButton {
   button_group: PanelButtonGroup,
-  cpu_button: PanelButton,
-  memory_button: PanelButton,
-  cpu_ring: RingIndicator,
-  memory_ring: RingIndicator,
+  _cpu_button: PanelButton,
+  _memory_button: PanelButton,
+  _cpu_ring: RingIndicator,
+  _memory_ring: RingIndicator,
 }
 
 impl SystemMetricsButton {
@@ -56,10 +56,10 @@ impl SystemMetricsButton {
 
     Self {
       button_group,
-      cpu_button,
-      memory_button,
-      cpu_ring,
-      memory_ring,
+      _cpu_button: cpu_button,
+      _memory_button: memory_button,
+      _cpu_ring: cpu_ring,
+      _memory_ring: memory_ring,
     }
   }
 

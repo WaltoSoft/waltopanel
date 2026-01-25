@@ -12,7 +12,7 @@ impl PanelButtonBuilder {
     }
   }
 
-  pub fn icon_name(self, icon_name: impl Into<String>) -> Self {
+  pub fn _icon_name(self, icon_name: impl Into<String>) -> Self {
     Self {
       builder: self.builder.property("icon-name", icon_name.into()),
     }

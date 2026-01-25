@@ -9,7 +9,7 @@ use crate::constants::*;
 #[derive(Clone, Debug)]
 pub struct Button {
   container: Box,
-  widget_container: Box,
+  _widget_container: Box,
   click_gesture: GestureClick,
 }
 
@@ -78,7 +78,7 @@ impl Button {
 
     Self {
       container,
-      widget_container,
+      _widget_container: widget_container,
       click_gesture,
     }
   }

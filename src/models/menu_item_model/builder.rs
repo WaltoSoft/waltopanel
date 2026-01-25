@@ -20,7 +20,7 @@ impl MenuBuilder {
     }
   }
 
-  pub fn item_if(self, condition: bool, id: impl Into<String>, text: impl Into<String>) -> MenuItemBuilder {
+  pub fn _item_if(self, condition: bool, id: impl Into<String>, text: impl Into<String>) -> MenuItemBuilder {
     if condition {
       self.item(id, text)
     } else {
@@ -31,7 +31,7 @@ impl MenuBuilder {
     }
   }
 
-  pub fn build(self) -> TypedListStore<MenuItemModel> {
+  pub fn _build(self) -> TypedListStore<MenuItemModel> {
     self.items
   }
 }
@@ -50,14 +50,14 @@ impl MenuItemBuilder {
     self
   }
 
-  pub fn allow_toggle(self) -> Self {
+  pub fn _allow_toggle(self) -> Self {
     if let Some(ref item) = self.item {
       item.set_allow_toggle(true);
     }
     self
   }
 
-  pub fn toggled(self, toggled: bool) -> Self {
+  pub fn _toggled(self, toggled: bool) -> Self {
     if let Some(ref item) = self.item {
       item.set_toggled(toggled);
       item.set_allow_toggle(true);
@@ -65,7 +65,7 @@ impl MenuItemBuilder {
     self
   }
 
-  pub fn toggled_on(self) -> Self {
+  pub fn _toggled_on(self) -> Self {
     if let Some(ref item) = self.item {
       item.set_toggled(true);
       item.set_allow_toggle(true);
@@ -73,21 +73,21 @@ impl MenuItemBuilder {
     self
   }
 
-  pub fn separator(self) -> Self {
+  pub fn _separator(self) -> Self {
     if let Some(ref item) = self.item {
       item.set_separator_after(true);
     }
     self
   }
 
-  pub fn disabled(self) -> Self {
+  pub fn _disabled(self) -> Self {
     if let Some(ref item) = self.item {
       item.set_disabled(true);
     }
     self
   }
 
-  pub fn disabled_if(self, condition: bool) -> Self {
+  pub fn _disabled_if(self, condition: bool) -> Self {
     if condition {
       if let Some(ref item) = self.item {
         item.set_disabled(true);
@@ -96,7 +96,7 @@ impl MenuItemBuilder {
     self
   }
 
-  pub fn submenu<F>(self, builder_fn: F) -> Self
+  pub fn _submenu<F>(self, builder_fn: F) -> Self
   where
     F: FnOnce(MenuBuilder) -> TypedListStore<MenuItemModel>,
   {
@@ -115,7 +115,7 @@ impl MenuItemBuilder {
     self.parent.item(id, text)
   }
 
-  pub fn item_if(self, condition: bool, id: impl Into<String>, text: impl Into<String>) -> MenuItemBuilder {
+  pub fn _item_if(self, condition: bool, id: impl Into<String>, text: impl Into<String>) -> MenuItemBuilder {
     if let Some(item) = self.item {
       self.parent.items.append(item);
     }

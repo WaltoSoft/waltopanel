@@ -55,7 +55,7 @@ impl DropdownComponent {
     }
   }
 
-  pub fn is_visible(&self) -> bool {
+  pub fn _is_visible(&self) -> bool {
     self.container.is_visible()
   }
 }

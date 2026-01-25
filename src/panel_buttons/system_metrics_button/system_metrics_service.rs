@@ -136,7 +136,7 @@ impl SystemMetricsService {
     });
   }
 
-  pub fn get_current_state() -> Option<SystemMetrics> {
+  pub fn _get_current_state() -> Option<SystemMetrics> {
     METRICS_SERVICE.with(|service| {
       service.borrow().as_ref().map(|state| {
         state.borrow().metrics.clone()

@@ -21,7 +21,7 @@ pub struct WorkspaceInfo {
 pub struct WorkspaceState {
     pub workspaces: Vec<WorkspaceInfo>,
     pub active_workspace_id: i32,
-    pub current_monitor: String,
+    pub _current_monitor: String,
 }
 
 type WorkspaceCallback = Box<dyn Fn(WorkspaceState)>;
@@ -35,7 +35,7 @@ struct HyprlandServiceState {
     all_workspaces: Vec<WorkspaceInfo>,
     active_workspace_id: i32,
     subscribers: Vec<MonitorSubscription>,
-    running: bool,
+    _running: bool,
 }
 
 thread_local! {
@@ -66,7 +66,7 @@ impl HyprlandService {
                 all_workspaces: all_workspaces.clone(),
                 active_workspace_id,
                 subscribers: Vec::new(),
-                running: true,
+                _running: true,
             }));
 
             *service.borrow_mut() = Some(service_state.clone());
@@ -83,10 +83,10 @@ impl HyprlandService {
         })
     }
 
-    pub fn stop() {
+    pub fn _stop() {
         HYPRLAND_SERVICE.with(|service| {
             if let Some(state) = service.borrow().as_ref() {
-                state.borrow_mut().running = false;
+                state.borrow_mut()._running = false;
             }
             *service.borrow_mut() = None;
         });
@@ -270,7 +270,7 @@ impl HyprlandService {
         WorkspaceState {
             workspaces: monitor_workspaces,
             active_workspace_id,
-            current_monitor: monitor_name.to_string(),
+            _current_monitor: monitor_name.to_string(),
         }
     }
 

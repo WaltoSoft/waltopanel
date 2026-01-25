@@ -57,7 +57,7 @@ fn build_panels_for_all_monitors(
       let monitor = monitor_obj.downcast::<gdk::Monitor>()
         .map_err(|_| "Failed to downcast monitor")?;
      
-      let mut panel = create_panel_for_monitor(app, &monitor, i as usize)?;
+      let panel = create_panel_for_monitor(app, &monitor, i as usize)?;
       panel.present();
       
       panels.borrow_mut().push(panel);
@@ -86,8 +86,6 @@ fn create_panel_for_monitor(
   monitor: &gdk::Monitor,
   monitor_index: usize
 ) -> Result<SystemPanel, Box<dyn std::error::Error>> {
-  let geometry = monitor.geometry();
-
   // Get the monitor connector name (e.g., "eDP-1", "DP-1")
   let monitor_name = monitor.connector()
     .map(|s| s.to_string())

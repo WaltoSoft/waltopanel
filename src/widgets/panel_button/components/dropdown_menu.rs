@@ -264,14 +264,6 @@ impl DropdownMenu {
     ! self.menu_stack.borrow().is_empty()
   }
  
-  fn has_toggable_items(&self) -> bool {
-    self.current_menu().iter().any(|item| item.allow_toggle())
-  }
-
-  fn has_icons(&self) -> bool {
-    self.current_menu().iter().any(|item| item.icon_name().is_some())
-  }
-
   fn get_back_button_label(&self) -> String {
     self.breadcrumbs.borrow().last().cloned().unwrap_or_else(|| String::from("Back"))
   }
@@ -322,10 +314,7 @@ impl DropdownMenu {
     let menu_clone = self.clone();
     let model_clone = model.clone();
     let menu_item = DropdownMenuItem::new(
-      model_clone,
-      self.has_toggable_items(),
-      self.has_icons(),
-      self.in_submenu());
+      model_clone);
 
     menu_item.connect_clicked(move |model| menu_clone.take_menu_action(model));
     menu_item_row.set_child(Some(&menu_item.widget()));

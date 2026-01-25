@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Local};
+use chrono::Local;
 use gtk::glib;
 use gtk::Widget;
 use gtk::glib::object::Cast;

@@ -22,7 +22,7 @@ pub struct WifiInfo {
 #[derive(Debug, Clone)]
 pub struct EthernetInfo {
   pub name: String,
-  pub device: String,
+  pub _device: String,
   pub connected: bool,
 }
 
@@ -105,7 +105,7 @@ impl NetworkService {
     })
   }
 
-  pub fn stop() {
+  pub fn _stop() {
     NETWORK_SERVICE.with(|service| {
       if let Some(ref mut state) = *service.borrow_mut() {
         state.running = false;
@@ -547,7 +547,7 @@ fn get_ethernet_connections() -> Vec<EthernetInfo> {
 
             Some(EthernetInfo {
               name: device.clone(),
-              device,
+              _device: device,
               connected,
             })
           } else {
@@ -563,7 +563,7 @@ fn get_ethernet_connections() -> Vec<EthernetInfo> {
 
 fn get_wifi_connections() -> Vec<WifiInfo> {
   // Use D-Bus to query iwd for precise signal strength values
-  get_wifi_connections_dbus().unwrap_or_else(|e| {
+  get_wifi_connections_dbus().unwrap_or_else(|_| {
     get_wifi_connections_iwctl_fallback()
   })
 }

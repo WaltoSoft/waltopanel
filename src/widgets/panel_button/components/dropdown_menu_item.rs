@@ -4,9 +4,9 @@ use gtk::{Box, ClosureExpression, GestureClick, Grid, Label, Widget};
 use gtk::{Align, Orientation};
 use gtk::gio::ListStore;
 
-use crate::{constants::{ICON_SIZE, PANEL_BUTTON_MENU_ITEM_SPACING}, types::TypedListStore, widgets::OptionalImage};
+use crate::{constants::{ICON_SIZE, PANEL_BUTTON_MENU_ITEM_SPACING}, widgets::OptionalImage};
 use crate::models::MenuItemModel;
-use crate::traits::{CompositeWidget, WidgetExtensions};
+use crate::traits::CompositeWidget;
 
 #[derive(Clone, Debug)]
 pub struct DropdownMenuItem {
@@ -16,7 +16,7 @@ pub struct DropdownMenuItem {
 }
 
 impl DropdownMenuItem {
-  pub fn new(model: MenuItemModel, menu_has_toggable_items: bool, menu_has_icons: bool, menu_is_submenu: bool) -> Self {
+  pub fn new(model: MenuItemModel) -> Self {
     let mut col = 0;
 
     let mut css_classes = vec!["menu-item"];
@@ -91,8 +91,6 @@ impl DropdownMenuItem {
     col += 1;
 
     content_grid.attach(&submenu_icon_image, col, 0, 1, 1);
-    col += 1;
-
 
     let click_gesture = GestureClick::new();
 
