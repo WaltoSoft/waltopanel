@@ -29,8 +29,6 @@ impl DropdownMenuItem {
         .orientation(Orientation::Horizontal)
         .css_classes(css_classes)
         .focus_on_click(!model.disabled())
-        .can_focus(!model.disabled())
-        .focusable(!model.disabled())
         .sensitive(!model.disabled())
         .build();
 

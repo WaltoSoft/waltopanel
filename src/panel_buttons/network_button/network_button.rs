@@ -19,8 +19,8 @@ impl NetworkButton {
     let initial_metrics = NetworkService::start(3); // Update every 3 seconds
     let panel_button = PanelButton::new();
     let menu = TypedListStore::<MenuItemModel>::new();
-    
-    panel_button.set_menu(menu.clone());  
+
+    panel_button.set_menu(menu.clone());
 
     panel_button.connect_menu_item_clicked(move |_, item| {
       match item.id().as_str() {
@@ -186,7 +186,7 @@ impl NetworkButton {
           model.set_allow_toggle(false);
           model.set_toggled(false);
           model.set_separator_after(false);
-          menu.append(model)
+          menu.append(model);
         }
         *menu_index += 1;
 

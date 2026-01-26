@@ -307,8 +307,6 @@ impl DropdownMenu {
   fn build_menu_item_row(&self, model: &MenuItemModel) -> ListBoxRow {
     let menu_item_row = ListBoxRow::builder()
       .activatable(!model.disabled())
-      .focusable(!model.disabled())
-      .can_focus(!model.disabled())
       .build();
 
     let menu_clone = self.clone();
