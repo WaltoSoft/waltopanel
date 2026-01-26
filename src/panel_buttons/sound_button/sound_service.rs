@@ -1,8 +1,92 @@
-use std::process::Command;
+use gtk::glib;
+use std::{cell::RefCell, process::Command};
+
+#[derive(Debug, Clone)]
+pub struct VolumeState {
+  pub volume: f64,
+  pub is_muted: bool,
+}
+
+type VolumeCallback = Box<dyn Fn(VolumeState)>;
+
+struct SoundServiceState {
+  subscribers: Vec<VolumeCallback>,
+}
+
+thread_local! {
+  static SOUND_SERVICE: RefCell<Option<SoundServiceState>> = RefCell::new(None);
+}
 
 pub struct SoundService;
 
 impl SoundService {
+  pub fn start() {
+    SOUND_SERVICE.with(|service| {
+      if service.borrow().is_some() {
+        return; // Already started
+      }
+
+      let state = SoundServiceState {
+        subscribers: Vec::new(),
+      };
+
+      *service.borrow_mut() = Some(state);
+
+      // Start monitoring volume changes in background thread
+      std::thread::spawn(|| {
+        Self::monitor_volume_changes();
+      });
+    });
+  }
+
+  pub fn subscribe<F>(callback: F)
+  where
+    F: Fn(VolumeState) + 'static
+  {
+    SOUND_SERVICE.with(|service| {
+      if let Some(ref mut state) = *service.borrow_mut() {
+        state.subscribers.push(Box::new(callback));
+      }
+    });
+  }
+
+  fn monitor_volume_changes() {
+    use std::thread;
+    use std::time::Duration;
+
+    let mut last_volume = Self::get_volume();
+    let mut last_muted = Self::is_muted();
+
+    loop {
+      thread::sleep(Duration::from_millis(200));
+
+      let current_volume = Self::get_volume();
+      let current_muted = Self::is_muted();
+
+      // Only notify if something actually changed
+      if current_volume != last_volume || current_muted != last_muted {
+        last_volume = current_volume;
+        last_muted = current_muted;
+
+        let volume_state = VolumeState {
+          volume: current_volume,
+          is_muted: current_muted,
+        };
+
+        // Notify all subscribers on main thread
+        glib::idle_add_once(move || {
+          SOUND_SERVICE.with(|service| {
+            if let Some(ref state) = *service.borrow() {
+              for callback in &state.subscribers {
+                callback(volume_state.clone());
+              }
+            }
+          });
+        });
+      }
+    }
+  }
+
   /// Get the current volume percentage (0-100)
   pub fn get_volume() -> f64 {
     let output = Command::new("wpctl")

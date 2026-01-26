@@ -12,6 +12,9 @@ pub struct SoundButton {
 
 impl SoundButton {
   pub fn new() -> Self {
+    // Start the sound monitoring service
+    SoundService::start();
+
     let panel_button = PanelButton::from_icon_name("audio-volume-high-symbolic");
     let volume_slider = VolumeSlider::new(&panel_button);
 
@@ -22,7 +25,7 @@ impl SoundButton {
     // Set the volume slider as the dropdown widget
     panel_button.set_dropdown_widget(Some(volume_slider.widget().upcast_ref::<Widget>()));
 
-    // Connect to volume changes
+    // Connect to volume changes from slider
     let panel_button_clone = panel_button.clone();
     volume_slider.connect_value_changed(move |volume| {
       Self::update_icon(&panel_button_clone, volume);
@@ -59,6 +62,24 @@ impl SoundButton {
     } else {
       volume_slider.set_mute_button_label("Mute");
     }
+
+    // Subscribe to external volume changes (e.g., keyboard volume keys)
+    let panel_button_clone = panel_button.clone();
+    let volume_slider_clone = volume_slider.clone();
+    SoundService::subscribe(move |volume_state| {
+      // Update icon
+      Self::update_icon(&panel_button_clone, volume_state.volume);
+
+      // Update slider position
+      volume_slider_clone.set_volume(volume_state.volume);
+
+      // Update mute button label
+      if volume_state.is_muted {
+        volume_slider_clone.set_mute_button_label("Unmute");
+      } else {
+        volume_slider_clone.set_mute_button_label("Mute");
+      }
+    });
 
     Self {
       panel_button,
