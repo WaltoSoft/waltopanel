@@ -55,12 +55,15 @@ impl SystemPanel {
       .spacing(spacing)
       .halign(Align::Start)
       .hexpand(true)
+      .css_classes(vec!["panel-container-box"])
       .build();
 
     let center_box = Box::builder()
       .orientation(Orientation::Horizontal)
       .spacing(spacing)
       .halign(Align::Center)
+      .hexpand(true)
+      .css_classes(vec!["panel-container-box"])
       .build();
 
     let right_box = Box::builder()
@@ -68,6 +71,7 @@ impl SystemPanel {
       .spacing(spacing)
       .halign(Align::End)
       .hexpand(true)
+      .css_classes(vec!["panel-container-box"])
       .build();
 
     let panel_box = CenterBox::builder()
