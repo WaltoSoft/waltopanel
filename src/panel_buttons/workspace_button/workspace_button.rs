@@ -147,8 +147,9 @@ impl WorkspaceButton {
         // Remove the + button
         self.button_group.remove_button(&state.plus_button);
 
-        // Create buttons for each visible workspace
+        // Create buttons for each visible workspace (exclude special workspaces with negative IDs)
         let mut workspaces = workspace_state.workspaces.clone();
+        workspaces.retain(|ws| ws.id >= 0);
         workspaces.sort_by_key(|ws| ws.id);
 
         for workspace in workspaces {
