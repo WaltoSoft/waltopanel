@@ -58,7 +58,7 @@ impl BackButton {
 }
 
 impl CompositeWidget for BackButton {
-  fn widget(&self) -> Widget {
-    self.container.clone().upcast()
+  fn widget(&self) -> &Widget {
+    self.container.upcast_ref()
   }
 }

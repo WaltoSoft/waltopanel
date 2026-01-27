@@ -168,18 +168,25 @@ impl PanelButtonImp {
 
     obj.add_css_class("panelbutton");
 
-    button.connect_clicked(glib::clone!(@weak obj => move || {
+    let obj_weak = obj.downgrade();
+    let button_clone = button.clone();
+
+    button.connect_clicked( move || {
+      let Some(obj) = obj_weak.upgrade() else { return };
+
+      button_clone.widget().grab_focus();
+
       let imp = obj.imp();
       if let Some(menu) = imp.menu.get() {
-        PanelButton::close_other_instances(&obj);
-        menu.toggle_visibility();
+          PanelButton::close_other_instances(&obj);
+          menu.toggle_visibility();
       } else if let Some(dropdown) = imp.dropdown_component.get() {
-        PanelButton::close_other_instances(&obj);
-        dropdown.toggle_visibility();
+          PanelButton::close_other_instances(&obj);
+          dropdown.toggle_visibility();
       } else {
-        obj.emit_by_name::<()>("button-clicked", &[]);
+          obj.emit_by_name::<()>("button-clicked", &[]);
       }
-    }));
+    });
 
     self.button.set(button.clone()).expect("Failed to set button");
 

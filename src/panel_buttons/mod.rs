@@ -5,6 +5,7 @@ mod network_button;
 mod sound_button;
 mod system_button;
 mod system_metrics_button;
+mod weather_button;
 mod workspace_button;
 
 pub use battery_button::BatteryButton;
@@ -14,4 +15,5 @@ pub use network_button::NetworkButton;
 pub use sound_button::SoundButton;
 pub use system_button::SystemButton;
 pub use system_metrics_button::SystemMetricsButton;
+pub use weather_button::WeatherButton;
 pub use workspace_button::WorkspaceButton;

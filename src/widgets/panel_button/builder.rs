@@ -1,4 +1,4 @@
-use gtk::glib::object::{Object, ObjectBuilder};
+use gtk::{Widget, glib::object::{Object, ObjectBuilder}};
 use crate::widgets::PanelButton;
 
 pub struct PanelButtonBuilder {
@@ -9,6 +9,18 @@ impl PanelButtonBuilder {
   pub fn new() -> Self {
     Self {
       builder: Object::builder(),
+    }
+  }
+
+  pub fn custom_widget(self, widget: Option<Widget>) -> Self {
+    Self {
+      builder: self.builder.property("custom-widget", widget),
+    }
+  }
+
+  pub fn dropdown_widget(self, widget: Widget) -> Self {
+    Self {
+      builder: self.builder.property("dropdown-widget", widget),
     }
   }
 

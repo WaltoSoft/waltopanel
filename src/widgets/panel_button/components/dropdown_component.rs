@@ -79,8 +79,8 @@ impl DropdownComponent {
 // End Event Handler Methods-----------------------------------------------------------------------
 
 impl CompositeWidget for DropdownComponent {
-  fn widget(&self) -> Widget {
-    self.container.clone().upcast()
+  fn widget(&self) -> &Widget {
+    self.container.upcast_ref()
   }
 }
 

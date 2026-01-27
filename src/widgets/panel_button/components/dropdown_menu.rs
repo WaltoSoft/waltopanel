@@ -297,7 +297,7 @@ impl DropdownMenu {
     back_button.connect_clicked(move || menu_clone.show_submenu_parent());
 
     let back_button_row = ListBoxRow::builder()
-      .child(&back_button.widget())
+      .child(back_button.widget())
       .css_classes(vec!["menu-back-row", "has-separator-after"])
       .build();
 
@@ -315,7 +315,7 @@ impl DropdownMenu {
       model_clone);
 
     menu_item.connect_clicked(move |model| menu_clone.take_menu_action(model));
-    menu_item_row.set_child(Some(&menu_item.widget()));
+    menu_item_row.set_child(Some(menu_item.widget()));
 
     if model.separator_after() {
       menu_item_row.add_css_class("has-separator-after");
@@ -400,8 +400,8 @@ impl DropdownMenu {
 // End Event Handler Methods-----------------------------------------------------------------------
 
 impl CompositeWidget for DropdownMenu {
-  fn widget(&self) -> Widget {
-    self.container.clone().upcast()
+  fn widget(&self) -> &Widget {
+    self.container.upcast_ref()
   }
 }
 

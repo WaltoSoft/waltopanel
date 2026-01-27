@@ -329,8 +329,8 @@ impl NetworkButton {
 }
 
 impl CompositeWidget for NetworkButton {
-  fn widget(&self) -> Widget {
-    self.panel_button.clone().upcast()
+  fn widget(&self) -> &Widget {
+    self.panel_button.upcast_ref()
   }
 }
 

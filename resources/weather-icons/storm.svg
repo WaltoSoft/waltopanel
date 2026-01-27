@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark Cloud -->
+  <ellipse cx="24" cy="14" rx="13" ry="8" fill="#4B5563" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="14" cy="17" rx="9" ry="6" fill="#4B5563" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="34" cy="17" rx="9" ry="6" fill="#4B5563" stroke="#374151" stroke-width="1.5"/>
+  <ellipse cx="24" cy="20" rx="10" ry="6" fill="#4B5563" stroke="#374151" stroke-width="1.5"/>
+  <!-- Lightning bolt -->
+  <path d="M 26 24 L 20 32 L 24 32 L 22 42 L 30 30 L 26 30 Z" fill="#FCD34D" stroke="#F59E0B" stroke-width="1" stroke-linejoin="miter"/>
+  <!-- Rain -->
+  <g stroke="#60A5FA" stroke-width="2" stroke-linecap="round" opacity="0.7">
+    <line x1="14" y1="26" x2="12" y2="32"/>
+    <line x1="34" y1="26" x2="32" y2="32"/>
+  </g>
+</svg>

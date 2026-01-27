@@ -8,7 +8,7 @@ use gtk::Box;
 use std::boxed::Box as StdBox;
 
 use crate::config::{WaltoPanelConfig, Margins};
-use crate::panel_buttons::ClockButton;
+use crate::panel_buttons::{ClockButton, WeatherButton};
 use crate::traits::ApplicationWindowExtensions;
 use crate::traits::CompositeWidget;
 
@@ -84,30 +84,33 @@ impl SystemPanel {
 
     let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("view-app-grid-symbolic", "pkill rofi || rofi -show drun");
     let launch_widget = launch_button.widget();
-    left_box.append(&launch_widget);
+    left_box.append(launch_widget);
 
     if let Some(monitor_name) = monitor_name {
       let workspace_button = crate::panel_buttons::WorkspaceButton::new_with_monitor(monitor_name);
-      left_box.append(&workspace_button.widget());
+      left_box.append(workspace_button.widget());
     }
 
     let clock_button = ClockButton::new();
-    center_box.append(&clock_button.widget());
+    center_box.append(clock_button.widget());
+
+    let weather_button = WeatherButton::new();
+    center_box.append(weather_button.widget());
 
     let system_metrics_button = crate::panel_buttons::SystemMetricsButton::new();
-    right_box.append(&system_metrics_button.widget());
+    right_box.append(system_metrics_button.widget());
 
     let network_button = crate::panel_buttons::NetworkButton::new();
-    right_box.append(&network_button.widget());
+    right_box.append(network_button.widget());
 
     let sound_button = crate::panel_buttons::SoundButton::new();
-    right_box.append(&sound_button.widget());
+    right_box.append(sound_button.widget());
 
     let battery_button = crate::panel_buttons::BatteryButton::new();
-    right_box.append(&battery_button.widget());
+    right_box.append(battery_button.widget());
 
     let system_close_button = crate::panel_buttons::SystemButton::new();
-    right_box.append(&system_close_button.widget());
+    right_box.append(system_close_button.widget());
 
 
     panel_box.set_start_widget(Some(&left_box));

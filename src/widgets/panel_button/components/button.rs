@@ -69,10 +69,10 @@ impl Button {
 
     let click_gesture = GestureClick::new();
 
-    // Order: text, custom widget, icon
-    container.append(&text_label);
-    container.append(&widget_container);
     container.append(&icon_image);
+    container.append(&widget_container);
+    container.append(&text_label);
+
     container.add_controller(click_gesture.clone());
     container.set_parent(parent);
 
@@ -102,7 +102,7 @@ impl Button {
 }
 
 impl CompositeWidget for Button {
-  fn widget(&self) -> Widget {
-    self.container.clone().upcast()
+  fn widget(&self) -> &Widget {
+    self.container.upcast_ref()
   }
 }

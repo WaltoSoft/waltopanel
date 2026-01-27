@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cloud -->
+  <ellipse cx="24" cy="16" rx="13" ry="8" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <ellipse cx="14" cy="19" rx="9" ry="6" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <ellipse cx="34" cy="19" rx="9" ry="6" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <ellipse cx="24" cy="22" rx="10" ry="6" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <!-- Snowflakes -->
+  <g stroke="#93C5FD" stroke-width="1.5" stroke-linecap="round">
+    <!-- Snowflake 1 -->
+    <line x1="15" y1="30" x2="15" y2="36"/>
+    <line x1="12" y1="33" x2="18" y2="33"/>
+    <line x1="13" y1="31" x2="17" y2="35"/>
+    <line x1="13" y1="35" x2="17" y2="31"/>
+    <!-- Snowflake 2 -->
+    <line x1="24" y1="32" x2="24" y2="38"/>
+    <line x1="21" y1="35" x2="27" y2="35"/>
+    <line x1="22" y1="33" x2="26" y2="37"/>
+    <line x1="22" y1="37" x2="26" y2="33"/>
+    <!-- Snowflake 3 -->
+    <line x1="33" y1="30" x2="33" y2="36"/>
+    <line x1="30" y1="33" x2="36" y2="33"/>
+    <line x1="31" y1="31" x2="35" y2="35"/>
+    <line x1="31" y1="35" x2="35" y2="31"/>
+  </g>
+</svg>

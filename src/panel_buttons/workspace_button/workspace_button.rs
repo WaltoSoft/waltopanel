@@ -222,8 +222,8 @@ impl WorkspaceButton {
 }
 
 impl CompositeWidget for WorkspaceButton {
-    fn widget(&self) -> Widget {
-        self.button_group.clone().upcast()
+    fn widget(&self) -> &Widget {
+        self.button_group.upcast_ref()
     }
 }
 

@@ -69,7 +69,7 @@ impl BatteryButton {
 }
 
 impl CompositeWidget for BatteryButton {
-  fn widget(&self) -> Widget {
-    self.panel_button.clone().upcast()
+  fn widget(&self) -> &Widget {
+    self.panel_button.upcast_ref()
   }
 }
