@@ -82,7 +82,7 @@ impl SystemPanel {
       .margin_bottom(margins.bottom)
       .build();
 
-    let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("view-app-grid-symbolic", "pkill rofi || rofi -show drun -show-icons -theme launchpad");
+    let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("view-app-grid-symbolic", "pkill rofi || /home/billy/.config/waltoland/scripts/rofi-alphabetical-apps.sh");
     let launch_widget = launch_button.widget();
     left_box.append(launch_widget);
 
