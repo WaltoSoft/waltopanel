@@ -1,16 +1,22 @@
 mod battery_button;
+mod brightness_button;
 mod clock_button;
+mod consolidate_button;
 mod launch_button;
+mod microphone_button;
 mod network_button;
 mod sound_button;
 mod system_button;
 mod system_metrics_button;
 mod weather_button;
-mod workspace_button;
+pub mod workspace_button;
 
 pub use battery_button::BatteryButton;
+pub use brightness_button::BrightnessButton;
 pub use clock_button::ClockButton;
+pub use consolidate_button::ConsolidateButton;
 pub use launch_button::LaunchButton;
+pub use microphone_button::MicrophoneButton;
 pub use network_button::NetworkButton;
 pub use sound_button::SoundButton;
 pub use system_button::SystemButton;

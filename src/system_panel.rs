@@ -110,6 +110,12 @@ impl SystemPanel {
     let network_button = crate::panel_buttons::NetworkButton::new();
     right_box.append(network_button.widget());
 
+    let brightness_button = crate::panel_buttons::BrightnessButton::new();
+    right_box.append(brightness_button.widget());
+
+    let microphone_button = crate::panel_buttons::MicrophoneButton::new();
+    right_box.append(microphone_button.widget());
+
     let sound_button = crate::panel_buttons::SoundButton::new();
     right_box.append(sound_button.widget());
 

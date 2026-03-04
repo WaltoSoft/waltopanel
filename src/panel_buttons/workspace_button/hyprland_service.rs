@@ -1,12 +1,14 @@
 use gtk::glib;
 use serde_json::Value;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::env;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::thread;
+use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WorkspaceInfo {
@@ -93,6 +95,7 @@ impl HyprlandService {
 
             // Start event listener in a separate thread
             Self::start_event_listener();
+            Self::start_dpms_watcher();
 
             // Return filtered state for this monitor
             Self::filter_workspace_state_for_monitor(
@@ -170,6 +173,61 @@ impl HyprlandService {
         // Now switch to the new workspace ID (this will create it on the focused monitor)
         if let Err(e) = Self::send_command(&format!("dispatch workspace {}", new_workspace_id)) {
             eprintln!("Failed to create new workspace: {}", e);
+        }
+    }
+
+    /// Move all workspaces from external monitors to the first internal (eDP-*) display.
+    /// Intended to be called when switching a KVM switch away from this machine.
+    pub fn move_all_to_laptop() {
+        let monitors_json = match Self::send_command("j/monitors") {
+            Ok(j) => j,
+            Err(e) => { eprintln!("[HyprlandService] move_all_to_laptop: failed to query monitors: {}", e); return; }
+        };
+        let monitors: Value = match serde_json::from_str(&monitors_json) {
+            Ok(v) => v,
+            Err(e) => { eprintln!("[HyprlandService] move_all_to_laptop: failed to parse monitors: {}", e); return; }
+        };
+        let monitors_array = match monitors.as_array() {
+            Some(a) => a,
+            None => return,
+        };
+        let laptop = match monitors_array.iter().find_map(|m| {
+            let name = m["name"].as_str()?;
+            if name.starts_with("eDP") { Some(name.to_string()) } else { None }
+        }) {
+            Some(l) => l,
+            None => { eprintln!("[HyprlandService] move_all_to_laptop: no eDP monitor found"); return; }
+        };
+        let laptop_only = vec![laptop.clone()];
+        Self::move_orphaned_workspaces_to(&laptop, &laptop_only);
+    }
+
+    /// Move any workspaces assigned to a connector not in `active_connectors`
+    /// to `target_monitor`. Uses the GDK-provided connector list rather than
+    /// querying Hyprland's monitor list, because Hyprland's IPC can lag behind
+    /// GDK when multiple monitors disconnect simultaneously.
+    pub fn move_orphaned_workspaces_to(target_monitor: &str, active_connectors: &[String]) {
+        let workspaces_json = match Self::send_command("j/workspaces") {
+            Ok(r) => r,
+            Err(e) => { eprintln!("[HyprlandService] Failed to query workspaces: {}", e); return; }
+        };
+
+        let workspaces: Value = match serde_json::from_str(&workspaces_json) {
+            Ok(v) => v,
+            Err(e) => { eprintln!("[HyprlandService] Failed to parse workspaces: {}", e); return; }
+        };
+
+        if let Some(ws_array) = workspaces.as_array() {
+            for ws in ws_array {
+                if let (Some(ws_id), Some(ws_monitor)) = (ws["id"].as_i64(), ws["monitor"].as_str()) {
+                    if !active_connectors.contains(&ws_monitor.to_string()) {
+                        let _ = Self::send_command(&format!(
+                            "dispatch moveworkspacetomonitor {} {}",
+                            ws_id, target_monitor
+                        ));
+                    }
+                }
+            }
         }
     }
 
@@ -443,15 +501,39 @@ impl HyprlandService {
 
             for line in reader.lines() {
                 if let Ok(event) = line {
-                    // Check if this is a workspace or window-related event
+                    // When Hyprland removes a monitor, immediately move orphaned workspaces
+                    // in the background thread. GDK doesn't always fire items_changed for
+                    // all monitor disconnections (e.g. DDC/CI keeps DP-2 "connected" in GDK).
+                    if event.starts_with("monitorremoved>>") {
+                        // At this point Hyprland has already removed the monitor from its
+                        // internal list, so j/monitors will give us the authoritative set.
+                        if let Ok(monitors_json) = Self::send_command("j/monitors") {
+                            if let Ok(monitors_val) = serde_json::from_str::<serde_json::Value>(&monitors_json) {
+                                let active: Vec<String> = monitors_val
+                                    .as_array()
+                                    .unwrap_or(&vec![])
+                                    .iter()
+                                    .filter_map(|m| m["name"].as_str().map(|s| s.to_string()))
+                                    .collect();
+                                if let Some(target) = active.first().cloned() {
+                                    Self::move_orphaned_workspaces_to(&target, &active);
+                                }
+                            }
+                        }
+                    }
+
+                    // Check if this is a workspace, window, or monitor-related event
                     if event.starts_with("workspace>>")
                         || event.starts_with("createworkspace>>")
                         || event.starts_with("destroyworkspace>>")
                         || event.starts_with("moveworkspace>>")
+                        || event.starts_with("moveworkspacev2>>")
                         || event.starts_with("openwindow>>")
                         || event.starts_with("closewindow>>")
                         || event.starts_with("movewindow>>")
                         || event.starts_with("activewindow>>")
+                        || event.starts_with("monitorremoved>>")
+                        || event.starts_with("monitoradded>>")
                     {
                         // Schedule the state update on the main thread
                         glib::idle_add_once(move || {
@@ -476,6 +558,65 @@ impl HyprlandService {
                             Self::notify_subscribers();
                         });
                     }
+                }
+            }
+        });
+    }
+
+    /// Poll monitor DPMS status every 2 seconds. When an external monitor transitions
+    /// from DPMS-on to DPMS-off (e.g. KVM switch), move its workspaces to the first
+    /// monitor that still has DPMS on.
+    fn start_dpms_watcher() {
+        thread::spawn(move || {
+            // Give Hyprland a moment to settle before we start polling.
+            thread::sleep(Duration::from_secs(3));
+
+            let mut prev_dpms: HashMap<String, bool> = HashMap::new();
+
+            loop {
+                thread::sleep(Duration::from_secs(2));
+
+                let monitors_json = match Self::send_command("j/monitors") {
+                    Ok(j) => j,
+                    Err(_) => continue,
+                };
+
+                let monitors: Value = match serde_json::from_str(&monitors_json) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+
+                let monitors_array = match monitors.as_array() {
+                    Some(a) => a.clone(),
+                    None => continue,
+                };
+
+                // Collect monitors that currently have DPMS on.
+                let dpms_on: Vec<String> = monitors_array.iter()
+                    .filter_map(|m| {
+                        let name = m["name"].as_str()?.to_string();
+                        let dpms = m["dpmsStatus"].as_bool().unwrap_or(true);
+                        if dpms { Some(name) } else { None }
+                    })
+                    .collect();
+
+                for monitor in &monitors_array {
+                    let name = match monitor["name"].as_str() {
+                        Some(n) => n.to_string(),
+                        None => continue,
+                    };
+                    let dpms = monitor["dpmsStatus"].as_bool().unwrap_or(true);
+                    let was_on = *prev_dpms.get(&name).unwrap_or(&true);
+
+                    if was_on && !dpms {
+                        // This monitor just lost DPMS — KVM likely switched away.
+                        eprintln!("[HyprlandService] DPMS off on {}, moving workspaces to {:?}", name, dpms_on.first());
+                        if let Some(target) = dpms_on.first().cloned() {
+                            Self::move_orphaned_workspaces_to(&target, &dpms_on);
+                        }
+                    }
+
+                    prev_dpms.insert(name, dpms);
                 }
             }
         });

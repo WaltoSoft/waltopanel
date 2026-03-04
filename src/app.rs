@@ -1,11 +1,19 @@
+use gtk::glib;
 use gtk::gio;
 use gtk::prelude::*;
 use gtk::gdk;
 use gtk4_layer_shell::LayerShell;
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::panel_buttons::workspace_button::hyprland_service::HyprlandService;
 use crate::system_panel::SystemPanel;
+
+struct PanelEntry {
+  connector: String,
+  panel: SystemPanel,
+}
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
   adw::init().unwrap();
@@ -24,15 +32,49 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     .flags(gio::ApplicationFlags::empty())
     .build();
 
-  let panels = Rc::new(RefCell::new(Vec::<SystemPanel>::new()));
+  let panels: Rc<RefCell<Vec<PanelEntry>>> = Rc::new(RefCell::new(Vec::new()));
 
   {
     let panels = panels.clone();
     app.connect_activate(move |app| {
-      if let Err(e) = build_panels_for_all_monitors(app, &panels) {
-        eprintln!("Failed to build panels: {}", e);
-        std::process::exit(1);
-      }
+      let display = gdk::Display::default().expect("Could not get default display");
+
+      // Initial panel creation
+      sync_panels(app, &panels);
+
+      // Register monitor change handler exactly once, here on activate
+      let panels = panels.clone();
+      let app_weak = app.downgrade();
+      let sync_pending = Rc::new(Cell::new(false));
+
+      display.monitors().connect_items_changed(move |monitors, _pos, _removed, _added| {
+        let active_connectors = list_connectors(monitors);
+
+        // Immediately hide panels whose monitor is gone so they don't
+        // migrate to another monitor while we wait for the idle callback.
+        for entry in panels.borrow().iter() {
+          if !active_connectors.contains(&entry.connector) {
+            entry.panel.window.set_visible(false);
+          }
+        }
+
+        // Defer the actual destroy/create work outside the Wayland dispatch.
+        // Guard against queuing multiple syncs for rapid back-to-back events.
+        if sync_pending.get() {
+          return;
+        }
+        sync_pending.set(true);
+
+        let sync_pending = sync_pending.clone();
+        let panels = panels.clone();
+        let app_weak = app_weak.clone();
+        glib::idle_add_local_once(move || {
+          sync_pending.set(false);
+          if let Some(app) = app_weak.upgrade() {
+            sync_panels(&app, &panels);
+          }
+        });
+      });
     });
   }
 
@@ -40,62 +82,89 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
   Ok(())
 }
 
-fn build_panels_for_all_monitors(
-  app: &adw::Application,
-  panels: &Rc<RefCell<Vec<SystemPanel>>>
-) -> Result<(), Box<dyn std::error::Error>> {
-  let display = gdk::Display::default().ok_or("Could not get default display")?;
+/// Returns the connector name for every monitor currently in the list model.
+fn list_connectors(monitors: &gio::ListModel) -> Vec<String> {
+  (0..monitors.n_items())
+    .filter_map(|i| monitors.item(i)?.downcast::<gdk::Monitor>().ok())
+    .enumerate()
+    .map(|(i, m)| connector_name(&m, i))
+    .collect()
+}
 
-  // Clear existing panels
-  panels.borrow_mut().clear();
+fn connector_name(monitor: &gdk::Monitor, index: usize) -> String {
+  monitor.connector()
+    .map(|s| s.to_string())
+    .unwrap_or_else(|| format!("monitor-{}", index))
+}
 
-  // Create panel for each monitor
-  let n_monitors = display.monitors().n_items();
-  
-  for i in 0..n_monitors {
-    if let Some(monitor_obj) = display.monitors().item(i) {
-      let monitor = monitor_obj.downcast::<gdk::Monitor>()
-        .map_err(|_| "Failed to downcast monitor")?;
-     
-      let panel = create_panel_for_monitor(app, &monitor, i as usize)?;
-      panel.present();
-      
-      panels.borrow_mut().push(panel);
+/// Diff the current panel list against the connected monitors:
+/// destroy panels for monitors that are gone, create panels for new monitors.
+fn sync_panels(app: &adw::Application, panels: &Rc<RefCell<Vec<PanelEntry>>>) {
+  let display = match gdk::Display::default() {
+    Some(d) => d,
+    None => return,
+  };
+  let monitors = display.monitors();
+
+  // Collect current monitors with their connector names
+  let current: Vec<(String, gdk::Monitor)> = (0..monitors.n_items())
+    .filter_map(|i| monitors.item(i)?.downcast::<gdk::Monitor>().ok())
+    .enumerate()
+    .map(|(i, m)| (connector_name(&m, i), m))
+    .collect();
+
+  let current_connectors: Vec<&str> = current.iter().map(|(c, _)| c.as_str()).collect();
+
+  // Destroy panels for monitors that are no longer connected.
+  let mut any_removed = false;
+  panels.borrow_mut().retain(|entry| {
+    if current_connectors.contains(&entry.connector.as_str()) {
+      true
+    } else {
+      entry.panel.window.destroy();
+      any_removed = true;
+      false
+    }
+  });
+
+  // If monitors were removed and at least one remains, move any workspaces
+  // still assigned to the now-gone monitors to the first remaining monitor.
+  // Pass the GDK connector list directly — Hyprland's IPC monitor list can
+  // lag behind GDK when multiple monitors disconnect simultaneously.
+  if any_removed {
+    if let Some((fallback, _)) = current.first() {
+      let active_connectors: Vec<String> = current.iter().map(|(c, _)| c.clone()).collect();
+      HyprlandService::move_orphaned_workspaces_to(fallback, &active_connectors);
     }
   }
-  
-  // Set up monitor change handling
-  {
-    let panels = panels.clone();
-    let app_weak = app.downgrade();
-    let monitors = display.monitors();
-    monitors.connect_items_changed(move |_, _, _, _| {
-      if let Some(app) = app_weak.upgrade() {
-        if let Err(e) = build_panels_for_all_monitors(&app, &panels) {
-          eprintln!("Failed to recreate panels: {}", e);
-        }
+
+  // Create panels for monitors that don't have one yet
+  let existing: Vec<String> = panels.borrow().iter().map(|e| e.connector.clone()).collect();
+  for (connector, monitor) in &current {
+    if existing.contains(connector) {
+      continue;
+    }
+    let index = current.iter().position(|(c, _)| c == connector).unwrap_or(0);
+    match create_panel_for_monitor(app, monitor, index) {
+      Ok(panel) => {
+        panel.present();
+        panels.borrow_mut().push(PanelEntry {
+          connector: connector.clone(),
+          panel,
+        });
       }
-    });
+      Err(e) => eprintln!("Failed to create panel for {}: {}", connector, e),
+    }
   }
-  
-  Ok(())
 }
 
 fn create_panel_for_monitor(
   app: &adw::Application,
   monitor: &gdk::Monitor,
-  monitor_index: usize
+  monitor_index: usize,
 ) -> Result<SystemPanel, Box<dyn std::error::Error>> {
-  // Get the monitor connector name (e.g., "eDP-1", "DP-1")
-  let monitor_name = monitor.connector()
-    .map(|s| s.to_string())
-    .unwrap_or_else(|| format!("monitor-{}", monitor_index));
-
-  // Create the panel with the monitor name
+  let monitor_name = connector_name(monitor, monitor_index);
   let panel = SystemPanel::new_with_monitor(app, monitor_name)?;
-
-  // Explicitly assign this panel to the specific monitor
   panel.window.set_monitor(Some(monitor));
-
   Ok(panel)
 }

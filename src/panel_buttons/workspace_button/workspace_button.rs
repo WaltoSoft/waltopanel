@@ -18,6 +18,7 @@ pub struct WorkspaceButton {
 struct WorkspaceButtonState {
     workspace_buttons: Vec<(i32, PanelButton)>, // (workspace_id, button)
     app_icon_buttons: Vec<(String, PanelButton)>, // (window_address, button)
+    consolidate_button: PanelButton,
     plus_button: PanelButton,
     current_monitor: Option<String>,
 }
@@ -26,10 +27,16 @@ impl WorkspaceButton {
     pub fn _new() -> Self {
         let button_group = PanelButtonGroup::new();
         let plus_button = PanelButton::from_text("+");
+        let consolidate_button = PanelButton::from_icon_name("video-display-symbolic");
+
+        consolidate_button.connect_button_clicked(move |_| {
+            HyprlandService::move_all_to_laptop();
+        });
 
         let state = Rc::new(RefCell::new(WorkspaceButtonState {
             workspace_buttons: Vec::new(),
             app_icon_buttons: Vec::new(),
+            consolidate_button: consolidate_button.clone(),
             plus_button: plus_button.clone(),
             current_monitor: None,
         }));
@@ -69,10 +76,16 @@ impl WorkspaceButton {
     pub fn new_with_monitor(monitor_name: String) -> Self {
         let button_group = PanelButtonGroup::new();
         let plus_button = PanelButton::from_text("+");
+        let consolidate_button = PanelButton::from_icon_name("video-display-symbolic");
+
+        consolidate_button.connect_button_clicked(move |_| {
+            HyprlandService::move_all_to_laptop();
+        });
 
         let state = Rc::new(RefCell::new(WorkspaceButtonState {
             workspace_buttons: Vec::new(),
             app_icon_buttons: Vec::new(),
+            consolidate_button: consolidate_button.clone(),
             plus_button: plus_button.clone(),
             current_monitor: Some(monitor_name.clone()),
         }));
@@ -144,7 +157,8 @@ impl WorkspaceButton {
         }
         state.app_icon_buttons.clear();
 
-        // Remove the + button
+        // Remove the consolidate and + buttons
+        self.button_group.remove_button(&state.consolidate_button);
         self.button_group.remove_button(&state.plus_button);
 
         // Create buttons for each visible workspace (exclude special workspaces with negative IDs)
@@ -171,6 +185,9 @@ impl WorkspaceButton {
             self.button_group.add_button(&button);
             state.workspace_buttons.push((workspace.id, button));
         }
+
+        // Add consolidate button before the + button
+        self.button_group.add_button(&state.consolidate_button);
 
         // Add the + button after workspace buttons
         // Check if + button should be disabled

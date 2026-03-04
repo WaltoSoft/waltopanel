@@ -167,6 +167,7 @@ impl PanelButtonImp {
     let button = Button::new(&*obj);
 
     obj.add_css_class("panelbutton");
+    obj.set_cursor_from_name(Some("pointer"));
 
     let obj_weak = obj.downgrade();
     let button_clone = button.clone();
