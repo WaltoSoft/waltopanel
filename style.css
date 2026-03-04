@@ -62,10 +62,6 @@ window {
   border-radius: 25px;
 }
 
-
-/* Note: :has() pseudoclass and pointer-events not supported in GTK CSS */
-/* Disabled menu items should be handled programmatically */
-
 .panelbutton .menu-list row:focus-visible {
   outline: none;
 }
@@ -80,12 +76,10 @@ window {
   -gtk-icon-transform: rotate(90deg);
 }
 
-/* Workspace button styling */
 .workspace-active {
   border-bottom: 2px solid var(--accent-bg-color);
 }
 
 .workspace-plus-disabled {
   opacity: 0.5;
-  /* pointer-events not supported in GTK CSS - handle programmatically if needed */
 }

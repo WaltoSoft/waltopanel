@@ -236,8 +236,4 @@ impl WeatherService {
             date.to_string()
         }
     }
-
-    pub fn get_current_weather() -> Option<WeatherData> {
-        CURRENT_WEATHER.lock().unwrap().clone()
-    }
 }
