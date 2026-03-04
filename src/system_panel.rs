@@ -7,9 +7,7 @@ use gtk::prelude::*;
 use gtk::Box;
 use std::boxed::Box as StdBox;
 
-use crate::config::{WaltoPanelConfig, Margins};
-use crate::panel_buttons::LaunchButton;
-use crate::panel_buttons::{ClockButton, WeatherButton};
+use crate::config::{PanelButtonConfig, PanelLayoutConfig, WaltoPanelConfig, Margins};
 use crate::traits::ApplicationWindowExtensions;
 use crate::traits::CompositeWidget;
 
@@ -19,7 +17,9 @@ pub struct SystemPanel {
 
 impl SystemPanel {
   pub fn new_with_monitor(app: &adw::Application, monitor_name: String) -> Result<Self, StdBox<dyn std::error::Error>> {
-    Self::with_config(app, WaltoPanelConfig::default(), Some(monitor_name))
+    let mut config = WaltoPanelConfig::default();
+    config.layout = PanelLayoutConfig::load_from_file();
+    Self::with_config(app, config, Some(monitor_name))
   }
 
   fn with_config(
@@ -35,7 +35,7 @@ impl SystemPanel {
     let _ = window.configure_top_layer_shell(config.height);
 
     let panel_box =
-      Self::create_panel_container(config.button_spacing, &config.margins, monitor_name);
+      Self::create_panel_container(config.button_spacing, &config.margins, &config.layout, monitor_name);
 
     window.set_content(Some(&panel_box));
 
@@ -45,10 +45,11 @@ impl SystemPanel {
 
     Ok(system_panel)
   }
-  
+
   fn create_panel_container(
     spacing: i32,
     margins: &Margins,
+    layout: &PanelLayoutConfig,
     monitor_name: Option<String>,
   ) -> gtk::CenterBox {
     let left_box = Box::builder()
@@ -83,54 +84,68 @@ impl SystemPanel {
       .margin_bottom(margins.bottom)
       .build();
 
-    let launch_button = crate::panel_buttons::LaunchButton::from_icon_name("view-app-grid-symbolic", "pkill rofi || /home/billy/.config/waltoland/scripts/rofi-alphabetical-apps.sh");
-    let launch_widget = launch_button.widget();
-    left_box.append(launch_widget);
-
-    if let Some(monitor_name) = monitor_name {
-      let workspace_button = crate::panel_buttons::WorkspaceButton::new_with_monitor(monitor_name);
-      left_box.append(workspace_button.widget());
-    }
-
-    let clock_button = ClockButton::new();
-    center_box.append(clock_button.widget());
-
-    let weather_button = WeatherButton::new();
-    center_box.append(weather_button.widget());
-
-    let system_metrics_button = crate::panel_buttons::SystemMetricsButton::new();
-    right_box.append(system_metrics_button.widget());
-
-    let bluetooth_button = LaunchButton::from_icon_name(
-      "bluetooth-symbolic",
-      "blueman-manager",
-    );
-    right_box.append(bluetooth_button.widget());
-
-    let network_button = crate::panel_buttons::NetworkButton::new();
-    right_box.append(network_button.widget());
-
-    let brightness_button = crate::panel_buttons::BrightnessButton::new();
-    right_box.append(brightness_button.widget());
-
-    let microphone_button = crate::panel_buttons::MicrophoneButton::new();
-    right_box.append(microphone_button.widget());
-
-    let sound_button = crate::panel_buttons::SoundButton::new();
-    right_box.append(sound_button.widget());
-
-    let battery_button = crate::panel_buttons::BatteryButton::new();
-    right_box.append(battery_button.widget());
-
-    let system_close_button = crate::panel_buttons::SystemButton::new();
-    right_box.append(system_close_button.widget());
-
+    Self::append_buttons(&left_box, &layout.left, monitor_name.as_deref());
+    Self::append_buttons(&center_box, &layout.center, monitor_name.as_deref());
+    Self::append_buttons(&right_box, &layout.right, monitor_name.as_deref());
 
     panel_box.set_start_widget(Some(&left_box));
     panel_box.set_center_widget(Some(&center_box));
     panel_box.set_end_widget(Some(&right_box));
 
     panel_box
+  }
+
+  fn append_buttons(container: &Box, buttons: &[PanelButtonConfig], monitor_name: Option<&str>) {
+    for button in buttons {
+      match button {
+        PanelButtonConfig::Launch { icon, command } => {
+          let btn = crate::panel_buttons::LaunchButton::from_icon_name(icon, command.clone());
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Clock => {
+          let btn = crate::panel_buttons::ClockButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Weather => {
+          let btn = crate::panel_buttons::WeatherButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Workspace => {
+          if let Some(name) = monitor_name {
+            let btn = crate::panel_buttons::WorkspaceButton::new_with_monitor(name.to_string());
+            container.append(btn.widget());
+          }
+        }
+        PanelButtonConfig::Network => {
+          let btn = crate::panel_buttons::NetworkButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Brightness => {
+          let btn = crate::panel_buttons::BrightnessButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Microphone => {
+          let btn = crate::panel_buttons::MicrophoneButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Sound => {
+          let btn = crate::panel_buttons::SoundButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::Battery => {
+          let btn = crate::panel_buttons::BatteryButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::System => {
+          let btn = crate::panel_buttons::SystemButton::new();
+          container.append(btn.widget());
+        }
+        PanelButtonConfig::SystemMetrics => {
+          let btn = crate::panel_buttons::SystemMetricsButton::new();
+          container.append(btn.widget());
+        }
+      }
+    }
   }
 
   pub fn present(&self) {
