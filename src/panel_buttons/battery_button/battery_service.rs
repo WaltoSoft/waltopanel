@@ -105,13 +105,14 @@ fn get_battery_percentage() -> u8 {
   let output = Command::new("bash")
     .arg("-c")
     .arg("cat /sys/class/power_supply/BAT0/capacity")
-    .output()
-    .expect("Failed to execute command");
+    .output();
 
-  if output.status.success() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if let Ok(percentage) = stdout.trim().parse::<u8>() {
-      return percentage;
+  if let Ok(output) = output {
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      if let Ok(percentage) = stdout.trim().parse::<u8>() {
+        return percentage;
+      }
     }
   }
 
@@ -122,12 +123,13 @@ fn check_if_plugged_in() -> bool {
   let output = Command::new("bash")
     .arg("-c")
     .arg("cat /sys/class/power_supply/AC/online")
-    .output()
-    .expect("Failed to execute command");
+    .output();
 
-  if output.status.success() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    return stdout.trim() == "1";
+  if let Ok(output) = output {
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      return stdout.trim() == "1";
+    }
   }
 
   false
@@ -149,14 +151,15 @@ fn get_time_till(plugged_in: bool) -> Option<String> {
   let output = Command::new("bash")
     .arg("-c")
     .arg(format!("upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep \"{}\" | cut -d: -f2- | xargs", grep_text))
-    .output()
-    .expect("Failed to execute command");
+    .output();
 
-  if output.status.success() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let time_str = stdout.trim();
-    if !time_str.is_empty() {
-      return Some(format!("Estimated {} {}", time_str, postfix));
+  if let Ok(output) = output {
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      let time_str = stdout.trim();
+      if !time_str.is_empty() {
+        return Some(format!("Estimated {} {}", time_str, postfix));
+      }
     }
   }
 

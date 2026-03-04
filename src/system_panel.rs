@@ -8,6 +8,7 @@ use gtk::Box;
 use std::boxed::Box as StdBox;
 
 use crate::config::{WaltoPanelConfig, Margins};
+use crate::panel_buttons::LaunchButton;
 use crate::panel_buttons::{ClockButton, WeatherButton};
 use crate::traits::ApplicationWindowExtensions;
 use crate::traits::CompositeWidget;
@@ -99,6 +100,12 @@ impl SystemPanel {
 
     let system_metrics_button = crate::panel_buttons::SystemMetricsButton::new();
     right_box.append(system_metrics_button.widget());
+
+    let bluetooth_button = LaunchButton::from_icon_name(
+      "bluetooth-symbolic",
+      "blueman-manager",
+    );
+    right_box.append(bluetooth_button.widget());
 
     let network_button = crate::panel_buttons::NetworkButton::new();
     right_box.append(network_button.widget());

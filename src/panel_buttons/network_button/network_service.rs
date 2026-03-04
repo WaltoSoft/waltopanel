@@ -482,6 +482,48 @@ fn get_primary_connection() -> (ConnectionType, String, u8) {
   (ConnectionType::Disconnected, String::from("Not connected"), 0)
 }
 
+/// Query wlan0 connection info directly from iwd, without checking ip route.
+/// Use this when we know the connection is WiFi (e.g. from iwd D-Bus signals)
+/// but the default route may not be established yet.
+fn get_wlan_connection() -> (ConnectionType, String, u8) {
+  let output = Command::new("iwctl")
+    .args(&["station", "wlan0", "show"])
+    .output();
+
+  if let Ok(output) = output {
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      let mut connected_network = None;
+      let mut rssi = None;
+
+      for line in stdout.lines() {
+        let cleaned = strip_ansi_codes(line);
+        if cleaned.contains("Connected network") {
+          if let Some(network) = cleaned.split_whitespace().last() {
+            connected_network = Some(network.to_string());
+          }
+        } else if cleaned.contains("RSSI") {
+          let parts: Vec<&str> = cleaned.split_whitespace().collect();
+          if let Some(pos) = parts.iter().position(|&p| p == "RSSI") {
+            if pos + 1 < parts.len() {
+              if let Ok(dbm) = parts[pos + 1].parse::<i32>() {
+                rssi = Some(dbm);
+              }
+            }
+          }
+        }
+      }
+
+      if let Some(network) = connected_network {
+        let signal = rssi.map(|r| dbm_to_percentage(r)).unwrap_or(0);
+        return (ConnectionType::Wifi, network, signal);
+      }
+    }
+  }
+
+  (ConnectionType::Disconnected, String::from("Not connected"), 0)
+}
+
 fn dbm_to_percentage(dbm: i32) -> u8 {
   // Convert dBm to percentage (0-100)
   // -30 dBm = 100% (excellent)
@@ -889,6 +931,8 @@ fn connect_to_wifi_dbus(ssid: &str) -> Result<(), Box<dyn std::error::Error>> {
               eprintln!("[NetworkService] Connect call failed for {}: {}", ssid, e);
               return Err(e.into());
             }
+
+            return Ok(());
           }
         }
       }
@@ -1111,9 +1155,10 @@ fn handle_iwd_property_change(
               );
             }
             "connected" => {
-              // When connected, fetch the connection details
-              // Also set is_networking_enabled and is_wifi_enabled to true since we're connected
-              let (conn_type, conn_name, signal) = get_primary_connection();
+              // When connected, query iwd directly for the connection info.
+              // Avoid get_primary_connection() here because it relies on `ip route show default`
+              // which may not be updated yet (DHCP/networkd runs after iwd connects).
+              let (conn_type, conn_name, signal) = get_wlan_connection();
               NetworkService::update_connection_state(
                 Some(true),  // networking must be enabled if we're connected
                 Some(true),  // wifi must be enabled if we're connected
@@ -1131,8 +1176,8 @@ fn handle_iwd_property_change(
 
       // ConnectedNetwork property changed
       if changed_props.contains_key("ConnectedNetwork") {
-        // Fetch updated connection info
-        let (conn_type, conn_name, signal) = get_primary_connection();
+        // Fetch updated connection info directly from iwd (not ip route)
+        let (conn_type, conn_name, signal) = get_wlan_connection();
         NetworkService::update_connection_state(
           None,
           None,
@@ -1148,8 +1193,8 @@ fn handle_iwd_property_change(
       if let Some(connected_value) = changed_props.get("Connected") {
         if let Ok(connected) = TryInto::<bool>::try_into(connected_value.clone()) {
           if connected {
-            // This network became connected - fetch connection details
-            let (conn_type, conn_name, signal) = get_primary_connection();
+            // This network became connected - query iwd directly (not ip route)
+            let (conn_type, conn_name, signal) = get_wlan_connection();
             NetworkService::update_connection_state(
               Some(true),  // networking must be enabled if connected
               Some(true),  // wifi must be enabled if connected

@@ -24,72 +24,25 @@ pub struct ForecastPeriod {
     pub icon_name: String,
 }
 
+// Open-Meteo API response structures
 #[derive(Debug, Deserialize)]
-struct PointsResponse {
-    properties: PointsProperties,
+struct OpenMeteoResponse {
+    current: CurrentWeather,
+    daily: DailyForecast,
 }
 
 #[derive(Debug, Deserialize)]
-struct PointsProperties {
-    forecast: String,
-    #[serde(rename = "forecastHourly")]
-    _forecast_hourly: String,
-    #[serde(rename = "observationStations")]
-    observation_stations: String,
+struct CurrentWeather {
+    temperature_2m: f64,
+    weather_code: i32,
 }
 
 #[derive(Debug, Deserialize)]
-struct ForecastResponse {
-    properties: ForecastProperties,
-}
-
-#[derive(Debug, Deserialize)]
-struct ForecastProperties {
-    periods: Vec<Period>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Period {
-    name: String,
-    temperature: i32,
-    #[serde(rename = "temperatureUnit")]
-    temperature_unit: String,
-    #[serde(rename = "shortForecast")]
-    short_forecast: String,
-    icon: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct StationsResponse {
-    features: Vec<StationFeature>,
-}
-
-#[derive(Debug, Deserialize)]
-struct StationFeature {
-    properties: StationProperties,
-}
-
-#[derive(Debug, Deserialize)]
-struct StationProperties {
-    #[serde(rename = "stationIdentifier")]
-    station_identifier: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ObservationResponse {
-    properties: ObservationProperties,
-}
-
-#[derive(Debug, Deserialize)]
-struct ObservationProperties {
-    temperature: TemperatureValue,
-    #[serde(rename = "textDescription")]
-    text_description: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct TemperatureValue {
-    value: Option<f64>,
+struct DailyForecast {
+    time: Vec<String>,
+    temperature_2m_max: Vec<f64>,
+    temperature_2m_min: Vec<f64>,
+    weather_code: Vec<i32>,
 }
 
 type Callback = Box<dyn Fn(WeatherData) + 'static>;
@@ -115,11 +68,18 @@ impl WeatherService {
 
         // Start periodic updates using glib timer
         glib::timeout_add_seconds_local(update_interval_secs as u32, move || {
+            eprintln!("Weather timer fired, fetching update...");
             // Spawn a thread to fetch weather data
             std::thread::spawn(|| {
-                if let Some(weather) = Self::fetch_weather_blocking() {
-                    *CURRENT_WEATHER.lock().unwrap() = Some(weather.clone());
-                    Self::notify_subscribers(weather);
+                match Self::fetch_weather_blocking() {
+                    Some(weather) => {
+                        eprintln!("Weather update successful: {:.1}°F", weather.temperature);
+                        *CURRENT_WEATHER.lock().unwrap() = Some(weather.clone());
+                        Self::notify_subscribers(weather);
+                    }
+                    None => {
+                        eprintln!("Weather fetch failed!");
+                    }
                 }
             });
 
@@ -150,119 +110,131 @@ impl WeatherService {
     }
 
     fn fetch_weather_blocking() -> Option<WeatherData> {
-        // Use a blocking reqwest client since we're already in a thread
         let client = reqwest::blocking::Client::builder()
             .user_agent("WaltoPanel/1.0")
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .ok()?;
 
-        // Step 1: Get forecast URL from points endpoint
-        let points_url = format!(
-            "https://api.weather.gov/points/{},{}",
+        // Open-Meteo API - single request for current weather and daily forecast
+        let url = format!(
+            "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&timezone=auto",
             LATITUDE, LONGITUDE
         );
 
-        let points_response = client
-            .get(&points_url)
+        let response = client
+            .get(&url)
             .send()
             .ok()?
-            .json::<PointsResponse>()
+            .json::<OpenMeteoResponse>()
             .ok()?;
 
-        // Step 2: Get observation stations
-        let stations_response = client
-            .get(&points_response.properties.observation_stations)
-            .send()
-            .ok()?
-            .json::<StationsResponse>()
-            .ok()?;
+        let current_temp = response.current.temperature_2m;
+        let current_code = response.current.weather_code;
+        let condition = Self::weather_code_to_description(current_code);
+        let icon = Self::weather_code_to_icon(current_code);
 
-        // Get the first (closest) station
-        let station = stations_response.features.first()?;
-        let station_id = &station.properties.station_identifier;
+        eprintln!("Weather API (Open-Meteo) - Temp: {:.1}°F, Condition: '{}'", current_temp, condition);
 
-        // Step 3: Get current observations from the station
-        let observations_url = format!(
-            "https://api.weather.gov/stations/{}/observations/latest",
-            station_id
-        );
-
-        let observation = client
-            .get(&observations_url)
-            .send()
-            .ok()?
-            .json::<ObservationResponse>()
-            .ok()?;
-
-        // Get current temperature (convert from Celsius to Fahrenheit if needed)
-        let current_temp_c = observation.properties.temperature.value?;
-        let current_temp_f = current_temp_c * 9.0 / 5.0 + 32.0;
-        let current_condition = observation.properties.text_description;
-
-        // Debug: Log what we got from the API
-        eprintln!("Weather API - Temp: {:.1}°F, Condition: '{}'", current_temp_f, current_condition);
-
-        // Step 4: Get forecast data for future periods
-        let forecast_response = client
-            .get(&points_response.properties.forecast)
-            .send()
-            .ok()?
-            .json::<ForecastResponse>()
-            .ok()?;
-
-        let periods = forecast_response.properties.periods;
-        if periods.is_empty() {
-            return None;
-        }
-
-        // Convert forecast periods
-        let detailed_forecast: Vec<ForecastPeriod> = periods
+        // Build daily forecast
+        let day_names = ["Today", "Tomorrow"];
+        let detailed_forecast: Vec<ForecastPeriod> = response.daily.time
             .iter()
-            .take(7) // Take next 7 periods for detailed forecast
-            .map(|p| ForecastPeriod {
-                name: p.name.clone(),
-                temperature: p.temperature,
-                temperature_unit: p.temperature_unit.clone(),
-                short_forecast: p.short_forecast.clone(),
-                icon_name: Self::get_icon_from_forecast(&p.short_forecast),
+            .enumerate()
+            .take(7)
+            .map(|(i, date)| {
+                let name = if i < day_names.len() {
+                    day_names[i].to_string()
+                } else {
+                    // Parse date and get day name
+                    Self::date_to_day_name(date)
+                };
+                let high = response.daily.temperature_2m_max.get(i).copied().unwrap_or(0.0) as i32;
+                let low = response.daily.temperature_2m_min.get(i).copied().unwrap_or(0.0) as i32;
+                let code = response.daily.weather_code.get(i).copied().unwrap_or(0);
+                let forecast_desc = Self::weather_code_to_description(code);
+
+                ForecastPeriod {
+                    name,
+                    temperature: high,
+                    temperature_unit: "F".to_string(),
+                    short_forecast: format!("{} (Low: {}°F)", forecast_desc, low),
+                    icon_name: Self::weather_code_to_icon(code),
+                }
             })
             .collect();
 
         Some(WeatherData {
-            temperature: current_temp_f,
-            condition: current_condition.clone(),
-            icon: Self::get_icon_from_forecast(&current_condition),
-            short_forecast: current_condition,
+            temperature: current_temp,
+            condition: condition.clone(),
+            icon,
+            short_forecast: condition,
             detailed_forecast,
         })
     }
 
-    fn get_icon_from_forecast(forecast: &str) -> String {
-        let forecast_lower = forecast.to_lowercase();
+    fn weather_code_to_description(code: i32) -> String {
+        // WMO Weather interpretation codes
+        match code {
+            0 => "Clear sky",
+            1 => "Mainly clear",
+            2 => "Partly cloudy",
+            3 => "Overcast",
+            45 | 48 => "Foggy",
+            51 => "Light drizzle",
+            53 => "Moderate drizzle",
+            55 => "Dense drizzle",
+            56 | 57 => "Freezing drizzle",
+            61 => "Slight rain",
+            63 => "Moderate rain",
+            65 => "Heavy rain",
+            66 | 67 => "Freezing rain",
+            71 => "Slight snow",
+            73 => "Moderate snow",
+            75 => "Heavy snow",
+            77 => "Snow grains",
+            80 => "Slight rain showers",
+            81 => "Moderate rain showers",
+            82 => "Violent rain showers",
+            85 => "Slight snow showers",
+            86 => "Heavy snow showers",
+            95 => "Thunderstorm",
+            96 | 99 => "Thunderstorm with hail",
+            _ => "Unknown",
+        }.to_string()
+    }
 
-        if forecast_lower.contains("thunder") || forecast_lower.contains("storm") {
-            "storm"
-        } else if forecast_lower.contains("rain") || forecast_lower.contains("shower") || forecast_lower.contains("drizzle") {
-            "rain"
-        } else if forecast_lower.contains("snow") || forecast_lower.contains("flurries") || forecast_lower.contains("sleet") {
-            "snow"
-        } else if forecast_lower.contains("cloud") || forecast_lower.contains("overcast") {
-            if forecast_lower.contains("partly") || forecast_lower.contains("few") || forecast_lower.contains("scattered") {
-                "partly-cloudy"
-            } else {
-                "cloudy"
-            }
-        } else if forecast_lower.contains("clear") || forecast_lower.contains("sunny") || forecast_lower.contains("fair") {
-            "clear"
-        } else if forecast_lower.contains("fog") || forecast_lower.contains("haze") || forecast_lower.contains("mist") {
-            "fog"
-        } else if forecast_lower.contains("wind") || forecast_lower.contains("breezy") || forecast_lower.contains("blustery") {
-            "windy"
+    fn weather_code_to_icon(code: i32) -> String {
+        match code {
+            0 => "clear",
+            1 | 2 => "partly-cloudy",
+            3 => "cloudy",
+            45 | 48 => "fog",
+            51 | 53 | 55 | 56 | 57 => "rain",
+            61 | 63 | 65 | 66 | 67 | 80 | 81 | 82 => "rain",
+            71 | 73 | 75 | 77 | 85 | 86 => "snow",
+            95 | 96 | 99 => "storm",
+            _ => "partly-cloudy",
+        }.to_string()
+    }
+
+    fn date_to_day_name(date: &str) -> String {
+        // Parse YYYY-MM-DD format and return day name
+        use chrono::{NaiveDate, Datelike, Weekday};
+
+        if let Ok(parsed) = NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+            match parsed.weekday() {
+                Weekday::Mon => "Monday",
+                Weekday::Tue => "Tuesday",
+                Weekday::Wed => "Wednesday",
+                Weekday::Thu => "Thursday",
+                Weekday::Fri => "Friday",
+                Weekday::Sat => "Saturday",
+                Weekday::Sun => "Sunday",
+            }.to_string()
         } else {
-            "partly-cloudy" // Default fallback
+            date.to_string()
         }
-        .to_string()
     }
 
     pub fn get_current_weather() -> Option<WeatherData> {
