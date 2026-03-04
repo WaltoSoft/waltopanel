@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Wind lines -->
+  <g fill="none" stroke="#6B7280" stroke-width="3" stroke-linecap="round">
+    <!-- Top wind line with curl -->
+    <path d="M6 16 H32 Q38 16 38 12 Q38 8 32 8"/>
+    <!-- Middle wind line (longest) -->
+    <path d="M4 24 H36 Q44 24 44 30 Q44 36 36 36"/>
+    <!-- Bottom wind line with curl -->
+    <path d="M10 32 H28 Q34 32 34 36 Q34 40 28 40"/>
+  </g>
+</svg>

@@ -1,0 +1,4 @@
+pub const ICON_SIZE: i32 = 16;
+
+pub const PANEL_BUTTON_ICON_LABEL_SPACING: i32 = 5;
+pub const PANEL_BUTTON_MENU_ITEM_SPACING: i32 = 12;

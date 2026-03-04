@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cloud -->
+  <ellipse cx="24" cy="22" rx="13" ry="9" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <ellipse cx="14" cy="26" rx="10" ry="7" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <ellipse cx="34" cy="26" rx="10" ry="7" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <ellipse cx="24" cy="30" rx="11" ry="7" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1.5"/>
+</svg>
