@@ -26,6 +26,9 @@ build() {
 package() {
   cd "$pkgname-$pkgver"
   install -Dm755 "target/release/waltopanel" "$pkgdir/usr/bin/waltopanel"
+  for svg in resources/weather-icons/*.svg; do
+    install -Dm644 "$svg" "$pkgdir/usr/share/waltopanel/weather-icons/$(basename "$svg")"
+  done
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/waltopanel.service" << 'EOF'
 [Unit]
 Description=WaltoPanel bar

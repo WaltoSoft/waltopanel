@@ -164,12 +164,17 @@ impl ForecastWidget {
         path.push("weather-icons");
         path.push(format!("{}.svg", icon_name));
 
-        // Fallback to absolute path
-        if !path.exists() {
-            PathBuf::from(format!("/home/billy/Git/waltopanel/resources/weather-icons/{}.svg", icon_name))
-        } else {
-            path
+        if path.exists() {
+            return path;
         }
+
+        // Fallback to installed path
+        let installed = PathBuf::from(format!("/usr/share/waltopanel/weather-icons/{}.svg", icon_name));
+        if installed.exists() {
+            return installed;
+        }
+
+        path
     }
 }
 
