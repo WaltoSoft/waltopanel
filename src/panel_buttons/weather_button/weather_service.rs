@@ -35,6 +35,7 @@ struct OpenMeteoResponse {
 struct CurrentWeather {
     temperature_2m: f64,
     weather_code: i32,
+    is_day: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,7 +119,7 @@ impl WeatherService {
 
         // Open-Meteo API - single request for current weather and daily forecast
         let url = format!(
-            "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&timezone=auto",
+            "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&timezone=auto",
             LATITUDE, LONGITUDE
         );
 
@@ -131,8 +132,9 @@ impl WeatherService {
 
         let current_temp = response.current.temperature_2m;
         let current_code = response.current.weather_code;
+        let is_day = response.current.is_day == 1;
         let condition = Self::weather_code_to_description(current_code);
-        let icon = Self::weather_code_to_icon(current_code);
+        let icon = Self::weather_code_to_icon(current_code, is_day);
 
         eprintln!("Weather API (Open-Meteo) - Temp: {:.1}°F, Condition: '{}'", current_temp, condition);
 
@@ -159,7 +161,7 @@ impl WeatherService {
                     temperature: high,
                     temperature_unit: "F".to_string(),
                     short_forecast: format!("{} (Low: {}°F)", forecast_desc, low),
-                    icon_name: Self::weather_code_to_icon(code),
+                    icon_name: Self::weather_code_to_icon(code, true),
                 }
             })
             .collect();
@@ -204,17 +206,17 @@ impl WeatherService {
         }.to_string()
     }
 
-    fn weather_code_to_icon(code: i32) -> String {
+    fn weather_code_to_icon(code: i32, is_day: bool) -> String {
         match code {
-            0 => "clear",
-            1 | 2 => "partly-cloudy",
+            0 => if is_day { "clear" } else { "clear-night" },
+            1 | 2 => if is_day { "partly-cloudy" } else { "partly-cloudy-night" },
             3 => "cloudy",
             45 | 48 => "fog",
             51 | 53 | 55 | 56 | 57 => "rain",
             61 | 63 | 65 | 66 | 67 | 80 | 81 | 82 => "rain",
             71 | 73 | 75 | 77 | 85 | 86 => "snow",
             95 | 96 | 99 => "storm",
-            _ => "partly-cloudy",
+            _ => if is_day { "partly-cloudy" } else { "partly-cloudy-night" },
         }.to_string()
     }
 
