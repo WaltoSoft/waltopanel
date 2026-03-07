@@ -1,13 +1,18 @@
 use gtk::{
     prelude::*,
-    Align, Box as GtkBox, Image, Label, Orientation,
+    Align, Box as GtkBox, Button, Entry, Image, Label, Orientation,
 };
 use std::path::PathBuf;
+use std::rc::Rc;
+use std::cell::RefCell;
 use super::weather_service::WeatherData;
 
 #[derive(Clone)]
 pub struct ForecastWidget {
     container: GtkBox,
+    location_label: Label,
+    weather_box: GtkBox,
+    on_location_changed: Rc<RefCell<Option<Box<dyn Fn(String)>>>>,
 }
 
 impl ForecastWidget {
@@ -18,24 +23,126 @@ impl ForecastWidget {
         container.set_margin_start(12);
         container.set_margin_end(12);
 
-        // Start with just a simple label
-        let test_label = Label::new(Some("Weather Forecast"));
-        container.append(&test_label);
+        // Header row: location label + edit button
+        let header_row = GtkBox::new(Orientation::Horizontal, 8);
+        let location_label = Label::new(None);
+        location_label.add_css_class("heading");
+        location_label.set_halign(Align::Start);
+        location_label.set_hexpand(true);
+        let edit_button = Button::from_icon_name("document-edit-symbolic");
+        edit_button.set_has_frame(false);
+        header_row.append(&location_label);
+        header_row.append(&edit_button);
+        container.append(&header_row);
 
-        Self { container }
+        let weather_box = GtkBox::new(Orientation::Vertical, 8);
+        container.append(&weather_box);
+
+        let on_location_changed: Rc<RefCell<Option<Box<dyn Fn(String)>>>> =
+            Rc::new(RefCell::new(None));
+
+        {
+            let location_label = location_label.clone();
+            let on_location_changed = on_location_changed.clone();
+            edit_button.connect_clicked(move |btn| {
+                let current = location_label.text().to_string();
+                let cb = on_location_changed.clone();
+
+                let dialog = gtk::Window::builder()
+                    .title("Edit Location")
+                    .modal(true)
+                    .resizable(false)
+                    .default_width(360)
+                    .build();
+
+                // Close the dropdown popover before presenting the modal
+                let mut ancestor = btn.parent();
+                while let Some(p) = ancestor {
+                    if let Ok(popover) = p.clone().downcast::<gtk::Popover>() {
+                        popover.popdown();
+                        break;
+                    }
+                    ancestor = p.parent();
+                }
+
+                if let Some(root) = btn.root() {
+                    if let Ok(parent_win) = root.downcast::<gtk::Window>() {
+                        dialog.set_transient_for(Some(&parent_win));
+                    }
+                }
+
+                let vbox = GtkBox::new(Orientation::Vertical, 12);
+                vbox.set_margin_top(20);
+                vbox.set_margin_bottom(20);
+                vbox.set_margin_start(20);
+                vbox.set_margin_end(20);
+
+                let entry = Entry::new();
+                entry.set_text(&current);
+                entry.set_placeholder_text(Some("City, state or zip code..."));
+                vbox.append(&entry);
+
+                let btn_row = GtkBox::new(Orientation::Horizontal, 8);
+                btn_row.set_halign(Align::End);
+                let cancel_btn = Button::with_label("Cancel");
+                let save_btn = Button::with_label("Save");
+                save_btn.add_css_class("suggested-action");
+                btn_row.append(&cancel_btn);
+                btn_row.append(&save_btn);
+                vbox.append(&btn_row);
+
+                dialog.set_child(Some(&vbox));
+
+                // Save: called by Enter key in entry or Save button click
+                entry.connect_activate({
+                    let dialog = dialog.clone();
+                    let entry = entry.clone();
+                    let cb = cb.clone();
+                    move |_| {
+                        let text = entry.text().to_string();
+                        if !text.is_empty() {
+                            if let Some(ref f) = *cb.borrow() { f(text); }
+                        }
+                        dialog.close();
+                    }
+                });
+
+                save_btn.connect_clicked({
+                    let dialog = dialog.clone();
+                    let entry = entry.clone();
+                    let cb = cb.clone();
+                    move |_| {
+                        let text = entry.text().to_string();
+                        if !text.is_empty() {
+                            if let Some(ref f) = *cb.borrow() { f(text); }
+                        }
+                        dialog.close();
+                    }
+                });
+
+                cancel_btn.connect_clicked({
+                    let dialog = dialog.clone();
+                    move |_| dialog.close()
+                });
+
+                dialog.present();
+            });
+        }
+
+        Self { container, location_label, weather_box, on_location_changed }
+    }
+
+    pub fn connect_location_changed<F: Fn(String) + 'static>(&self, callback: F) {
+        *self.on_location_changed.borrow_mut() = Some(Box::new(callback));
     }
 
     pub fn update(&self, weather: &WeatherData) {
-        // Clear existing children
-        while let Some(child) = self.container.first_child() {
-            self.container.remove(&child);
-        }
+        self.location_label.set_text(&weather.location_name);
 
-        // Add current conditions header
-        let current_header = Label::new(Some("Current Conditions"));
-        current_header.add_css_class("heading");
-        current_header.set_halign(Align::Start);
-        self.container.append(&current_header);
+        // Clear and rebuild the dynamic weather section
+        while let Some(child) = self.weather_box.first_child() {
+            self.weather_box.remove(&child);
+        }
 
         // Add current conditions
         let current_box = self.create_forecast_row(
@@ -46,19 +153,19 @@ impl ForecastWidget {
             &weather.icon,
             true,
         );
-        self.container.append(&current_box);
+        self.weather_box.append(&current_box);
 
         // Add separator
         let separator = gtk::Separator::new(Orientation::Horizontal);
         separator.set_margin_top(8);
         separator.set_margin_bottom(8);
-        self.container.append(&separator);
+        self.weather_box.append(&separator);
 
         // Add forecast header
         let forecast_header = Label::new(Some("Forecast"));
         forecast_header.add_css_class("heading");
         forecast_header.set_halign(Align::Start);
-        self.container.append(&forecast_header);
+        self.weather_box.append(&forecast_header);
 
         // Add detailed forecast periods
         for period in &weather.detailed_forecast {
@@ -70,7 +177,7 @@ impl ForecastWidget {
                 &period.icon_name,
                 false,
             );
-            self.container.append(&period_box);
+            self.weather_box.append(&period_box);
         }
     }
 

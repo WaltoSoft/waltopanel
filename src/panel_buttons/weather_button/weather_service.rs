@@ -2,11 +2,26 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
 use gtk::glib;
+use gtk::prelude::ApplicationExt;
 
 #[derive(Debug, Deserialize)]
 struct NominatimResult {
     lat: String,
     lon: String,
+    address: NominatimAddress,
+}
+
+#[derive(Debug, Deserialize)]
+struct NominatimAddress {
+    city: Option<String>,
+    town: Option<String>,
+    village: Option<String>,
+    hamlet: Option<String>,
+    county: Option<String>,
+    state: Option<String>,
+    #[serde(rename = "ISO3166-2-lvl4")]
+    state_code: Option<String>,
+    country: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,6 +31,7 @@ pub struct WeatherData {
     pub icon: String,
     pub short_forecast: String,
     pub detailed_forecast: Vec<ForecastPeriod>,
+    pub location_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,12 +73,52 @@ thread_local! {
 
 lazy_static::lazy_static! {
     static ref CURRENT_WEATHER: Arc<Mutex<Option<WeatherData>>> = Arc::new(Mutex::new(None));
+    static ref CURRENT_LOCATION: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
 }
 
 pub struct WeatherService;
 
 impl WeatherService {
+    pub fn update_location(new_location: &str) {
+        let loc = new_location.to_string();
+        std::thread::spawn(move || {
+            if let Some(weather) = Self::fetch_weather_blocking(&loc) {
+                // Only commit the new location if geocoding and fetch succeeded
+                *CURRENT_LOCATION.lock().unwrap() = loc;
+                let location_name = weather.location_name.clone();
+                *CURRENT_WEATHER.lock().unwrap() = Some(weather.clone());
+                Self::notify_subscribers(weather);
+                Self::send_notification(
+                    "Location Updated",
+                    &format!("Now showing weather for {}", location_name),
+                );
+            } else {
+                Self::send_notification(
+                    "Location Not Found",
+                    &format!("Couldn't find weather for \"{}\"", loc),
+                );
+            }
+        });
+    }
+
+    pub fn current_location() -> String {
+        CURRENT_LOCATION.lock().unwrap().clone()
+    }
+
+    fn send_notification(title: &str, body: &str) {
+        let title = title.to_string();
+        let body = body.to_string();
+        glib::MainContext::default().invoke(move || {
+            if let Some(app) = gtk::gio::Application::default() {
+                let notification = gtk::gio::Notification::new(&title);
+                notification.set_body(Some(&body));
+                app.send_notification(None, &notification);
+            }
+        });
+    }
+
     pub fn start(update_interval_secs: u64, location: &str) -> Option<WeatherData> {
+        *CURRENT_LOCATION.lock().unwrap() = location.to_string();
         let location = location.to_string();
 
         // Fetch initial weather data
@@ -75,7 +131,7 @@ impl WeatherService {
         // Start periodic updates using glib timer
         glib::timeout_add_seconds_local(update_interval_secs as u32, move || {
             eprintln!("Weather timer fired, fetching update...");
-            let location = location.clone();
+            let location = CURRENT_LOCATION.lock().unwrap().clone();
             // Spawn a thread to fetch weather data
             std::thread::spawn(move || {
                 match Self::fetch_weather_blocking(&location) {
@@ -116,10 +172,10 @@ impl WeatherService {
         });
     }
 
-    fn geocode(client: &reqwest::blocking::Client, location: &str) -> Option<(f64, f64)> {
+    fn geocode(client: &reqwest::blocking::Client, location: &str) -> Option<(f64, f64, String)> {
         let results: Vec<NominatimResult> = client
             .get("https://nominatim.openstreetmap.org/search")
-            .query(&[("q", location), ("format", "json"), ("limit", "1")])
+            .query(&[("q", location), ("format", "json"), ("limit", "1"), ("addressdetails", "1")])
             .send()
             .ok()?
             .json()
@@ -127,7 +183,25 @@ impl WeatherService {
         let first = results.into_iter().next()?;
         let lat = first.lat.parse::<f64>().ok()?;
         let lon = first.lon.parse::<f64>().ok()?;
-        Some((lat, lon))
+        let place = first.address.city
+            .or(first.address.town)
+            .or(first.address.village)
+            .or(first.address.hamlet)
+            .or(first.address.county)
+            .unwrap_or_default();
+        let state_abbr = first.address.state_code
+            .as_deref()
+            .and_then(|s| s.split('-').last())
+            .map(|s| s.to_string())
+            .or(first.address.state)
+            .unwrap_or_default();
+        let display_name = [place.as_str(), state_abbr.as_str()]
+            .iter()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+        Some((lat, lon, display_name))
     }
 
     fn fetch_weather_blocking(location: &str) -> Option<WeatherData> {
@@ -137,7 +211,7 @@ impl WeatherService {
             .build()
             .ok()?;
 
-        let (lat, lon) = Self::geocode(&client, location).or_else(|| {
+        let (lat, lon, location_name) = Self::geocode(&client, location).or_else(|| {
             eprintln!("waltopanel: failed to geocode location '{}'", location);
             None
         })?;
@@ -197,6 +271,7 @@ impl WeatherService {
             icon,
             short_forecast: condition,
             detailed_forecast,
+            location_name,
         })
     }
 

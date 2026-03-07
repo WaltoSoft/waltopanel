@@ -41,6 +41,11 @@ impl WeatherButton {
           .build()
       };
 
+    // Connect location change from entry
+    forecast_widget.connect_location_changed(move |new_location| {
+      WeatherService::update_location(&new_location);
+    });
+
     // Subscribe to weather updates
     let panel_button_clone = panel_button.clone();
     let forecast_widget_clone = forecast_widget.clone();
@@ -62,6 +67,13 @@ impl WeatherButton {
           weather_clone.temperature as i32
         );
         panel_button.set_tooltip_text(Some(&tooltip));
+
+        // Update panel button icon
+        let new_icon = WeatherButton::get_weather_icon(&weather_clone.icon);
+        panel_button.set_custom_widget(Some(new_icon.upcast_ref()));
+
+        // Save the successfully geocoded location to config
+        save_location_to_config(&WeatherService::current_location());
 
         // Update forecast dropdown
         forecast_widget.update(&weather_clone);
@@ -265,3 +277,30 @@ impl CompositeWidget for WeatherButton {
     }
 }
  */
+
+fn save_location_to_config(new_location: &str) {
+    let config_path = match std::env::var("HOME").ok() {
+        Some(home) => std::path::PathBuf::from(home).join(".config/waltopanel/config.json"),
+        None => return,
+    };
+    let content = match std::fs::read_to_string(&config_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let mut json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    for section in ["left", "center", "right"] {
+        if let Some(arr) = json.get_mut(section).and_then(|v| v.as_array_mut()) {
+            for entry in arr.iter_mut() {
+                if entry.get("type").and_then(|t| t.as_str()) == Some("weather") {
+                    entry["location"] = serde_json::Value::String(new_location.to_string());
+                }
+            }
+        }
+    }
+    if let Ok(updated) = serde_json::to_string_pretty(&json) {
+        let _ = std::fs::write(&config_path, updated);
+    }
+}
