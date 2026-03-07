@@ -106,8 +106,8 @@ impl SystemPanel {
           let btn = crate::panel_buttons::ClockButton::new();
           container.append(btn.widget());
         }
-        PanelButtonConfig::Weather => {
-          let btn = crate::panel_buttons::WeatherButton::new();
+        PanelButtonConfig::Weather { location } => {
+          let btn = crate::panel_buttons::WeatherButton::new(&location);
           container.append(btn.widget());
         }
         PanelButtonConfig::Workspace => {

@@ -11,8 +11,8 @@ pub struct WeatherButton {
 }
 
 impl WeatherButton {
-  pub fn new() -> Self {
-    let initial_data = WeatherService::start(300);
+  pub fn new(location: &str) -> Self {
+    let initial_data = WeatherService::start(300, location);
 
     // Create dropdown widget before the builder so it stays alive
     let forecast_widget = ForecastWidget::new();

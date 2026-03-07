@@ -3,8 +3,11 @@ use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
 use gtk::glib;
 
-const LATITUDE: f64 = 35.9978;  // Hardcoded for zip 74037 (Jenks, OK)
-const LONGITUDE: f64 = -95.9683;
+#[derive(Debug, Deserialize)]
+struct NominatimResult {
+    lat: String,
+    lon: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeatherData {
@@ -59,9 +62,11 @@ lazy_static::lazy_static! {
 pub struct WeatherService;
 
 impl WeatherService {
-    pub fn start(update_interval_secs: u64) -> Option<WeatherData> {
+    pub fn start(update_interval_secs: u64, location: &str) -> Option<WeatherData> {
+        let location = location.to_string();
+
         // Fetch initial weather data
-        let initial_weather = Self::fetch_weather_blocking();
+        let initial_weather = Self::fetch_weather_blocking(&location);
 
         if let Some(ref weather) = initial_weather {
             *CURRENT_WEATHER.lock().unwrap() = Some(weather.clone());
@@ -70,9 +75,10 @@ impl WeatherService {
         // Start periodic updates using glib timer
         glib::timeout_add_seconds_local(update_interval_secs as u32, move || {
             eprintln!("Weather timer fired, fetching update...");
+            let location = location.clone();
             // Spawn a thread to fetch weather data
-            std::thread::spawn(|| {
-                match Self::fetch_weather_blocking() {
+            std::thread::spawn(move || {
+                match Self::fetch_weather_blocking(&location) {
                     Some(weather) => {
                         eprintln!("Weather update successful: {:.1}°F", weather.temperature);
                         *CURRENT_WEATHER.lock().unwrap() = Some(weather.clone());
@@ -110,17 +116,36 @@ impl WeatherService {
         });
     }
 
-    fn fetch_weather_blocking() -> Option<WeatherData> {
+    fn geocode(client: &reqwest::blocking::Client, location: &str) -> Option<(f64, f64)> {
+        let results: Vec<NominatimResult> = client
+            .get("https://nominatim.openstreetmap.org/search")
+            .query(&[("q", location), ("format", "json"), ("limit", "1")])
+            .send()
+            .ok()?
+            .json()
+            .ok()?;
+        let first = results.into_iter().next()?;
+        let lat = first.lat.parse::<f64>().ok()?;
+        let lon = first.lon.parse::<f64>().ok()?;
+        Some((lat, lon))
+    }
+
+    fn fetch_weather_blocking(location: &str) -> Option<WeatherData> {
         let client = reqwest::blocking::Client::builder()
             .user_agent("WaltoPanel/1.0")
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .ok()?;
 
+        let (lat, lon) = Self::geocode(&client, location).or_else(|| {
+            eprintln!("waltopanel: failed to geocode location '{}'", location);
+            None
+        })?;
+
         // Open-Meteo API - single request for current weather and daily forecast
         let url = format!(
             "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&timezone=auto",
-            LATITUDE, LONGITUDE
+            lat, lon
         );
 
         let response = client

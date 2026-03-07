@@ -84,7 +84,7 @@ impl PanelLayoutConfig {
 pub enum PanelButtonConfig {
   Launch { icon: String, command: String },
   Clock,
-  Weather,
+  Weather { location: String },
   Workspace,
   Network,
   Brightness,
