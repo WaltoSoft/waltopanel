@@ -1,6 +1,6 @@
 # Maintainer: WaltoSoft <https://github.com/WaltoSoft>
 pkgname=waltopanel
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="A GTK4/Wayland panel bar"
 arch=('x86_64')
