@@ -1,1 +1,7 @@
 /target
+
+# makepkg artifacts
+*.tar.gz
+*.pkg.tar.zst
+pkg/
+src/waltopanel-*/

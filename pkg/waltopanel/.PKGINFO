@@ -3,12 +3,12 @@
 pkgname = waltopanel
 pkgbase = waltopanel
 xdata = pkgtype=pkg
-pkgver = 0.1.0-1
+pkgver = 0.1.1-1
 pkgdesc = A GTK4/Wayland panel bar
 url = https://github.com/WaltoSoft/waltopanel
-builddate = 1772660141
+builddate = 1772902320
 packager = Unknown Packager
-size = 6451994
+size = 6466830
 arch = x86_64
 license = MIT
 depend = gtk4
