@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Moon (crescent) -->
+  <path d="M28 8 C18 10 12 18 14 27 C16 36 25 42 34 40 C26 42 16 36 16 26 C16 16 22 10 28 8 Z"
+        fill="#C0C8E0" stroke="#9AA0B8" stroke-width="1" stroke-linejoin="round"/>
+  <!-- Stars -->
+  <circle cx="36" cy="12" r="1.5" fill="#C0C8E0"/>
+  <circle cx="40" cy="22" r="1" fill="#C0C8E0"/>
+  <circle cx="10" cy="14" r="1" fill="#C0C8E0"/>
+  <circle cx="38" cy="30" r="1.2" fill="#C0C8E0"/>
+</svg>
