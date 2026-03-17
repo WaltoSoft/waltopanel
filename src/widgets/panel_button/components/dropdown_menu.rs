@@ -164,13 +164,11 @@ impl DropdownMenu {
   }
 
   fn rebuild_menu(&self) {
-    if self.container.child().is_some() {
-      self.container.set_child(Widget::NONE);
-    }
-
     if ! self.current_menu().is_empty() {
-      let menu_box  = self.create_menu();
+      let menu_box = self.create_menu();
       self.container.set_child(Some(&menu_box));
+    } else {
+      self.container.set_child(Widget::NONE);
     }
   }
 
